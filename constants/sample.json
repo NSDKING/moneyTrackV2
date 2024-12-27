@@ -1,0 +1,151 @@
+{
+    "user": {
+      "id": "1",
+      "name": "John Doe",
+      "currency": "USD",
+      "theme": "dark",
+      "wallets": [
+        {
+          "id": "wallet1",
+          "name": "Cash Wallet",
+          "type": "main",
+          "balance": 1200,
+          "transactions": [
+            {
+              "id": "txn1",
+              "type": "income",
+              "category": "Salary",
+              "amount": 1000,
+              "date": "2024-12-01",
+              "notes": "November Salary",
+              "from": "Employer"
+            },
+            {
+              "id": "txn2",
+              "type": "expense",
+              "category": "Food",
+              "amount": 30,
+              "date": "2024-12-03",
+              "notes": "Dinner with friends",
+              "to": "Restaurant"
+            },
+            {
+              "id": "txn3",
+              "type": "transfer",
+              "category": "Transfer",
+              "amount": 200,
+              "date": "2024-12-05",
+              "notes": "Sent to Bank Account",
+              "to": "Bank Account"
+            },
+            {
+              "id": "txn4",
+              "type": "expense",
+              "category": "Entertainment",
+              "amount": 50,
+              "date": "2024-12-10",
+              "notes": "Movie tickets",
+              "to": "Cinema"
+            },
+            {
+              "id": "txn5",
+              "type": "income",
+              "category": "Freelance",
+              "amount": 500,
+              "date": "2024-12-15",
+              "notes": "Freelance project payment",
+              "from": "Client"
+            }
+          ]
+        },
+        {
+          "id": "wallet2",
+          "name": "Bank Account",
+          "type": "secondary",
+          "balance": 3000,
+          "transactions": [
+            {
+              "id": "txn6",
+              "type": "transfer",
+              "category": "Transfer",
+              "amount": 200,
+              "date": "2024-12-05",
+              "notes": "Received from Cash Wallet",
+              "from": "Cash Wallet"
+            },
+            {
+              "id": "txn7",
+              "type": "expense",
+              "category": "Shopping",
+              "amount": 150,
+              "date": "2024-12-07",
+              "notes": "Bought gifts",
+              "to": "Mall"
+            }
+          ]
+        },
+        {
+          "id": "wallet3",
+          "name": "Savings",
+          "type": "secondary",
+          "balance": 1800,
+          "transactions": [
+            {
+              "id": "txn8",
+              "type": "transfer",
+              "category": "Transfer",
+              "amount": 300,
+              "date": "2024-12-20",
+              "notes": "Added to savings",
+              "from": "Cash Wallet"
+            }
+          ]
+        }
+      ]
+    },
+    "budgets": [
+      {
+        "id": "budget1",
+        "category": "Food",
+        "amount": 200,
+        "spent": 30,
+        "period": "weekly",
+        "startDate": "2024-12-01",
+        "endDate": "2024-12-07"
+      },
+      {
+        "id": "budget2",
+        "category": "Entertainment",
+        "amount": 100,
+        "spent": 50,
+        "period": "monthly",
+        "startDate": "2024-12-01",
+        "endDate": "2024-12-31"
+      },
+      {
+        "id": "budget3",
+        "category": "Savings",
+        "amount": 500,
+        "spent": 300,
+        "period": "monthly",
+        "startDate": "2024-12-01",
+        "endDate": "2024-12-31"
+      }
+    ],
+    "reports": {
+      "totalIncome": 1500,
+      "totalExpenses": 230,
+      "categories": {
+        "Food": 30,
+        "Entertainment": 50,
+        "Shopping": 150
+      },
+      "walletBreakdown": {
+        "Cash Wallet": 1200,
+        "Bank Account": 3000,
+        "Savings": 1800
+      }
+    }
+  }
+
+  
