@@ -1,20 +1,20 @@
-import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
+import transactionsList from '@/constants/transactions';
+import { useState } from 'react';
+import walletLists from '@/constants/wallets';
 
 
-const wallets = [
-    { id: '1', type: 'Cash', amount: '150,000', icon: 'cash-outline' },
-    { id: '2', type: 'Bank', amount: '250,000', icon: 'card-outline' },
-    { id: '3', type: 'Savings', amount: '450,000', icon: 'wallet-outline' },
-];
-
+ 
+ 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
 const SPACING = 10;
 
 
 export default function Home() {
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
@@ -43,7 +43,7 @@ export default function Home() {
             </View>
             {/* Replace the single wallet box with FlatList */}
             <FlatList
-                data={wallets}
+                data={walletLists}
                 renderItem={renderWalletCard}
                 keyExtractor={(item) => item.id}
                 horizontal
@@ -66,6 +66,45 @@ export default function Home() {
                         <Text style={styles.actionButtonText}>Transfer</Text>
                     </View>
                 </TouchableOpacity>
+            </View>
+
+            <View style={styles.transactionsContainer}>
+                <View style={styles.transactionsHeader}>
+                    <Text style={styles.transactionsTitle}>Recent Transactions</Text>
+              
+                </View>
+                <FlatList
+                data={transactionsList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <TouchableOpacity style={styles.transactionItem}>
+                        <View style={styles.transactionLeft}>
+                            <View style={[
+                                styles.transactionIcon,
+                                { backgroundColor: item.amount.includes('+') ? '#e8f5e9' : '#ffebee' }
+                            ]}>
+                                <Ionicons 
+                                    name={item.icon} 
+                                    size={20} 
+                                    color={item.amount.includes('+') ? '#2e7d32' : '#c62828'} 
+                                />
+                            </View>
+                            <View>
+                                <Text style={styles.transactionTitle}>{item.title}</Text>
+                                <Text style={styles.transactionDate}>{item.date}</Text>
+                            </View>
+                        </View>
+                        <Text style={[
+                            styles.transactionAmount,
+                            { color: item.amount.includes('+') ? '#2e7d32' : '#c62828' }
+                        ]}>
+                            {item.amount}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+                showsVerticalScrollIndicator={false}
+                style={styles.transactionsList}
+            />
             </View>
           
         </View>
@@ -180,4 +219,98 @@ const styles = StyleSheet.create({
         color: Colors.CharcoalGray,
     },
 
+    transactionsContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        marginTop: 20,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+               ...Platform.select({
+           ios: {
+               transition: 'all 0.3s ease',
+           },
+           android: {
+               // Android doesn't support CSS transitions
+           },
+       }),
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+        ...Platform.select({
+            ios: {
+                transition: 'all 0.3s ease',
+            },
+            android: {
+                // Android doesn't support CSS transitions
+            },
+        }),
+    },
+    transactionsHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    transactionsTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.CharcoalGray,
+    },
+    seeAllButton: {
+        color: Colors.BrightRed,
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    transactionsList: {
+        maxHeight: 350, // Adjust this value based on your needs
+    },
+    transactionItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f5f5f5',
+    },
+    transactionLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    transactionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    transactionTitle: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: Colors.CharcoalGray,
+        marginBottom: 4,
+    },
+    transactionDate: {
+        fontSize: 13,
+        color: '#666',
+    },
+    transactionAmount: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    transactionsContainerExpanded: {
+        flex: 1,
+        maxHeight: '80%', // Adjust this value as needed
+    },
+    transactionsList: {
+        maxHeight: 350,
+    },
+    transactionsListExpanded: {
+        maxHeight: '100%',
+    },
+ 
 })

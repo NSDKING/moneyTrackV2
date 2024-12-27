@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur'
 import { StyleSheet } from 'react-native';
@@ -18,7 +17,7 @@ export default function TabLayout() {
                   intensity={100}
                   style={{
                     flex:1,
-                    backgroundColor:'rgba(0,0,0,0.05)',
+                    backgroundColor:'rgba(0,0,0,0.001)',
                   }}
                 />
       ),
