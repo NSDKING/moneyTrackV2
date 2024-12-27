@@ -4,9 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import transactionsList from '@/constants/transactions';
 import { useState } from 'react';
 import walletLists from '@/constants/wallets';
-
-
- 
+import AddTransactionModal from '../modals/AddTransacations';
+import AddTransferModal from '../modals/AddTrasnferModal';
  
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
@@ -14,7 +13,8 @@ const SPACING = 10;
 
 
 export default function Home() {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isAddTransactions, setIsAddTransactions] = useState(false);
+    const [isTransferModal, setIsTransferModal] = useState(false);
 
     const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
@@ -54,13 +54,20 @@ export default function Home() {
             />
 
             <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Add Transaction')}>
+                <TouchableOpacity 
+                    style={styles.actionButton} 
+                    onPress={() => setIsAddTransactions(true)}
+                >
                     <View style={styles.actionButtonContent}>
                         <Ionicons name="add-circle-outline" size={24} color={Colors.CharcoalGray} />
                         <Text style={styles.actionButtonText}>Add Transaction</Text>
                     </View>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Transfer')}>
+
+                <TouchableOpacity 
+                    style={styles.actionButton} 
+                    onPress={() => setIsTransferModal(true)}
+                >
                     <View style={styles.actionButtonContent}>
                         <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
                         <Text style={styles.actionButtonText}>Transfer</Text>
@@ -107,6 +114,16 @@ export default function Home() {
             />
             </View>
           
+            <AddTransactionModal
+                visible={isAddTransactions}
+                onClose={() => setIsAddTransactions(false)}
+             />
+
+            <AddTransferModal
+                    visible={isTransferModal}
+                    onClose={() => setIsTransferModal(false)}
+                    wallets={walletLists}
+            />
         </View>
   );
 }
