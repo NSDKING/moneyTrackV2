@@ -1,4 +1,4 @@
-import { View, Text,StyleSheet,Dimensions,FlatList } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -52,6 +52,21 @@ export default function Home() {
                 decelerationRate="fast"
                 contentContainerStyle={styles.carouselContainer}
             />
+
+            <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Add Transaction')}>
+                    <View style={styles.actionButtonContent}>
+                        <Ionicons name="add-circle-outline" size={24} color={Colors.CharcoalGray} />
+                        <Text style={styles.actionButtonText}>Add Transaction</Text>
+                    </View>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => console.log('Transfer')}>
+                    <View style={styles.actionButtonContent}>
+                        <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
+                        <Text style={styles.actionButtonText}>Transfer</Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
           
         </View>
   );
@@ -86,6 +101,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: 10,
     },
+
     carouselContainer: {
         paddingHorizontal: SPACING,
         paddingVertical: 20,
@@ -131,6 +147,37 @@ const styles = StyleSheet.create({
         borderRadius: 50,
     },
 
-
+    actionButtonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        marginVertical: 20,
+        gap: 10,
+    },
+    actionButton: {
+        flex: 1,
+        backgroundColor: '#fff',
+        padding: 11,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    actionButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    actionButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: Colors.CharcoalGray,
+    },
 
 })
