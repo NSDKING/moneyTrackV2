@@ -82,7 +82,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                                value={amount}
                                onChangeText={setAmount}
                                keyboardType="numeric"
-                               placeholder="0.00"
+                               placeholder="0.0000"
                            />
                        </View>
                         {/* Source Wallet Selection */}
