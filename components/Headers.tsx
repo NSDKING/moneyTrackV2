@@ -2,12 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet,TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { Link } from 'expo-router';
 import Colors from '@/constants/Colors';
 
-const Header = () => {
+interface HeaderProps {
+    onNotePress: () => void;
+}
+
+
+
+const Header = ({ onNotePress }: HeaderProps) => {
  const { top } = useSafeAreaInsets();
-  return (
+  
+ 
+ return (
    <BlurView intensity={90} tint="light" style={[styles.container, { paddingTop: top }]}>
      <View style={styles.headerContent}>
        {/* Logo */}
@@ -15,9 +22,14 @@ const Header = () => {
          <Text style={styles.logoText}>MoneyTrack</Text>
        </View>
         {/* Action Buttons */}
+        
+        {/**
        <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="create-outline" size={24} color="black" />
+        <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={onNotePress}
+        >
+            <Ionicons name="create-outline" size={24} color={Colors.dark} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.iconButton}>
@@ -29,6 +41,8 @@ const Header = () => {
           </TouchableOpacity>
    
        </View>
+         */}
+ 
      </View>
    </BlurView>
  );

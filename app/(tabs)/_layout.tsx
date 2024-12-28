@@ -4,11 +4,26 @@ import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur'
 import { StyleSheet } from 'react-native';
 import Header from '../../components/Headers';
+import { useState } from 'react';
+import NoteModal from '../modals/note';
+import walletLists from '@/constants/wallets';
 
 export default function TabLayout() {
   const router = useRouter();
+  const [isNote, setIsNote] = useState(false);
+
+  const handleNotePress = () => {
+    setIsNote(true);  
+  };
 
   return (
+    <>
+      <NoteModal
+        visible={isNote}
+        onClose={() => setIsNote(false)}
+        wallets={walletLists}
+      />
+
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#007AFF',
@@ -36,7 +51,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          header: ()=> <Header/>,
+          header: () => <Header onNotePress={handleNotePress} />,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
@@ -45,8 +60,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Statistics',
-          headerShown: false,
+          title: 'ReportsScreen',
+          header: () => <Header onNotePress={handleNotePress} />,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="stats-chart-outline" size={size} color={color} />
           ),
@@ -56,13 +71,16 @@ export default function TabLayout() {
         name="wallets"
         options={{
           title: 'Wallets',
-          headerShown: false,
+          header: () => <Header onNotePress={handleNotePress} />,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="wallet-outline" size={size} color={color} />
           ),
         }}
       />
     </Tabs>
+    
+    </>
+
   );
 }
 

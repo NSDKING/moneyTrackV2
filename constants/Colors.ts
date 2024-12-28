@@ -1,12 +1,20 @@
-export default {
-  primary: '#3D38ED',
-  primaryMuted: '#C9C8FA',
-  background: '#F5F5F5',
-  dark: '#141518',
-  gray: '#626D77',
-  lightGray: '#D8DCE2',
-
-  CharcoalGray: '#3C3F47',
-  BrightRed: '#E74C3C',
+// Assuming this is your Colors.ts file
+const Colors = {
+  primary: '#3498db',
+  primaryMuted: '#2980b9',
+  background: '#ffffff',
+  dark: '#2c3e50',
+  gray: '#7f8c8d',
+  lightGray: '#bdc3c7',
+  CharcoalGray: '#34495e',
+  BrightRed: '#e74c3c',
+  green: '#2ecc71',
+  lightRed: '#ff6b6b',
+  lightBlue: '#3498db',
+  lightGreen: '#2ecc71',
+  BrightGreen: '#27ae60',  
+  BrightBlue: '#007BFF', 
 
 };
+
+export default Colors;

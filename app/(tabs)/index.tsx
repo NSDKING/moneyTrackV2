@@ -1,4 +1,4 @@
-import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import transactionsList from '@/constants/transactions';
@@ -6,15 +6,43 @@ import { useState } from 'react';
 import walletLists from '@/constants/wallets';
 import AddTransactionModal from '../modals/AddTransacations';
 import AddTransferModal from '../modals/AddTrasnferModal';
- 
+  
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
 const SPACING = 10;
 
+const initialBudgets = {
+    food: { total: 2000, spent: 800 },
+    transport: { total: 1000, spent: 300 },
+    goingOut: { total: 1500, spent: 600 },
+};
 
 export default function Home() {
     const [isAddTransactions, setIsAddTransactions] = useState(false);
     const [isTransferModal, setIsTransferModal] = useState(false);
+    const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
+    const [selectedBudget, setSelectedBudget] = useState('');
+    const [budgetAmount, setBudgetAmount] = useState('');
+    const [budgets, setBudgets] = useState(initialBudgets);
+
+    const handleBudgetUpdate = (action: 'add' | 'remove') => {
+        const amount = parseFloat(budgetAmount);
+        if (isNaN(amount) || amount <= 0) {
+            Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+            return;
+        }
+
+        const updatedBudgets = { ...budgets };
+        if (action === 'add') {
+            updatedBudgets[selectedBudget].spent += amount;
+        } else if (action === 'remove') {
+            updatedBudgets[selectedBudget].spent -= amount;
+        }
+
+        setBudgets(updatedBudgets);
+        setIsBudgetModalVisible(false);
+        setBudgetAmount('');
+    };
 
     const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
@@ -29,7 +57,36 @@ export default function Home() {
           </View>
         </View>
       );
+
+    const renderTransactionCard = ({item}) =>(
+        <TouchableOpacity style={styles.transactionItem}>
+            <View style={styles.transactionLeft}>
+                <View style={[
+                    styles.transactionIcon,
+                    { backgroundColor: item.amount.includes('+') ? '#e8f5e9' : '#ffebee' }
+                ]}>
+                    <Ionicons 
+                        name={item.icon} 
+                        size={20} 
+                        color={item.amount.includes('+') ? '#2e7d32' : '#c62828'} 
+                    />
+                </View>
+                <View>
+                    <Text style={styles.transactionTitle}>{item.title}</Text>
+                    <Text style={styles.transactionDate}>{item.date}</Text>
+                </View>
+            </View>
+            <Text style={[
+                styles.transactionAmount,
+                { color: item.amount.includes('+') ? '#2e7d32' : '#c62828' }
+            ]}>
+                {item.amount}
+            </Text>
+        </TouchableOpacity>
+    );
   return (
+    <ScrollView style={styles.container}>
+         
         <View style={{padding:10}}>
             <View style={styles.HeaderLeft}>
                 <Text style={{fontSize:20, fontWeight:'500', color:Colors.CharcoalGray }}>Total Balance</Text>
@@ -78,57 +135,110 @@ export default function Home() {
             <View style={styles.transactionsContainer}>
                 <View style={styles.transactionsHeader}>
                     <Text style={styles.transactionsTitle}>Recent Transactions</Text>
-              
+            
                 </View>
-                <FlatList
-                data={transactionsList}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.transactionItem}>
-                        <View style={styles.transactionLeft}>
-                            <View style={[
-                                styles.transactionIcon,
-                                { backgroundColor: item.amount.includes('+') ? '#e8f5e9' : '#ffebee' }
-                            ]}>
-                                <Ionicons 
-                                    name={item.icon} 
-                                    size={20} 
-                                    color={item.amount.includes('+') ? '#2e7d32' : '#c62828'} 
-                                />
-                            </View>
-                            <View>
-                                <Text style={styles.transactionTitle}>{item.title}</Text>
-                                <Text style={styles.transactionDate}>{item.date}</Text>
-                            </View>
-                        </View>
-                        <Text style={[
-                            styles.transactionAmount,
-                            { color: item.amount.includes('+') ? '#2e7d32' : '#c62828' }
-                        ]}>
-                            {item.amount}
-                        </Text>
-                    </TouchableOpacity>
-                )}
-                showsVerticalScrollIndicator={false}
-                style={styles.transactionsList}
-            />
+                <View style={{ flex: 1 }}>
+                    <FlatList
+                        data={transactionsList}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderTransactionCard}
+                        showsVerticalScrollIndicator={false}
+                        style={styles.transactionsList}
+                        nestedScrollEnabled={true}
+                    />
+                </View>
             </View>
-          
+        
             <AddTransactionModal
                 visible={isAddTransactions}
                 onClose={() => setIsAddTransactions(false)}
-             />
+            />
 
             <AddTransferModal
                     visible={isTransferModal}
                     onClose={() => setIsTransferModal(false)}
                     wallets={walletLists}
             />
+
+            {/* Budget Section */}
+            <View style={styles.transactionsContainer}>
+                <Text style={styles.sectionTitle}>Budgets</Text>
+                {Object.keys(budgets).map((key) => {
+                    const budget = budgets[key];
+                    const remaining = budget.total - budget.spent;
+                    const spentPercentage = (budget.spent / budget.total) * 100;
+
+                    return (
+                        <View key={key} style={styles.budgetItem}>
+                            <View style={styles.budgetHeader}>
+                                <Text style={styles.budgetName}>{key.charAt(0).toUpperCase() + key.slice(1)} Budget</Text>
+                                <TouchableOpacity 
+                                    style={styles.editBudgetButton} 
+                                    onPress={() => {
+                                        setSelectedBudget(key);
+                                        setIsBudgetModalVisible(true);
+                                    }}
+                                >
+                                    <Text style={styles.editBudgetButtonText}>Edit</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={styles.budgetDetails}>
+                                <View style={styles.budgetDetail}>
+                                    <Ionicons name="cash-outline" size={20} color={Colors.BrightRed} />
+                                    <Text style={styles.budgetAmount}>Total: ₦{budget.total.toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.budgetDetail}>
+                                    <Ionicons name="arrow-up-outline" size={20} color={Colors.BrightGreen} />
+                                    <Text style={styles.budgetAmount}>Spent: ₦{budget.spent.toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.budgetDetail}>
+                                    <Ionicons name="arrow-down-outline" size={20} color={Colors.BrightBlue} />
+                                    <Text style={styles.budgetAmount}>Remaining: ₦{remaining.toLocaleString()}</Text>
+                                </View>
+                            </View>
+                            {/* Progress Bar */}
+                            <View style={styles.progressContainer}>
+                                <View style={[styles.progressBar, { width: `${spentPercentage}%` }]} />
+                            </View>
+                        </View>
+                    );
+                })}
+            </View>
+
+            {/* Budget Edit Modal */}
+            <Modal
+                visible={isBudgetModalVisible}
+                animationType="slide"
+                transparent={true}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Edit {selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)} Budget</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={budgetAmount}
+                            onChangeText={setBudgetAmount}
+                            keyboardType="numeric"
+                            placeholder="Enter amount"
+                        />
+  
+                    </View>
+                </View>
+            </Modal>
+
         </View>
+
+    </ScrollView>
+
+
   );
 }
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+      },
     HeaderLeft:{
         flexDirection: 'column',
         justifyContent: 'flex-start',
@@ -323,11 +433,131 @@ const styles = StyleSheet.create({
         flex: 1,
         maxHeight: '80%', // Adjust this value as needed
     },
-    transactionsList: {
-        maxHeight: 350,
-    },
+ 
     transactionsListExpanded: {
         maxHeight: '100%',
     },
- 
+
+    section: {
+        backgroundColor: '#fff',
+        marginHorizontal: 20,
+        marginVertical: 10,
+        padding: 20,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 15,
+        color: Colors.CharcoalGray,
+    },
+    budgetItem: {
+        marginVertical: 10,
+        padding: 15,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    budgetHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    budgetName: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.CharcoalGray,
+    },
+    editBudgetButton: {
+        backgroundColor: Colors.BrightRed,
+        padding: 5,
+        borderRadius: 5,
+    },
+    editBudgetButtonText: {
+        color: 'white',
+        fontWeight: '600',
+    },
+    budgetDetails: {
+        marginTop: 10,
+    },
+    budgetDetail: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 5,
+    },
+    budgetAmount: {
+        fontSize: 16,
+        marginLeft: 10,
+        color: Colors.CharcoalGray,
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        width: '80%',
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 20,
+    },
+    modalInput: {
+        width: '100%',
+        borderWidth: 1,
+        borderColor: Colors.lightGray,
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 20,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    modalButton: {
+        backgroundColor: Colors.BrightRed,
+        padding: 10,
+        borderRadius: 8,
+        flex: 1,
+        marginHorizontal: 5,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: 'white',
+        fontWeight: '600',
+    },
+    progressContainer: {
+        height: 20,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 10,
+        overflow: 'hidden',
+        marginVertical: 10,
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: Colors.BrightRed, // Change this to a color that fits your theme
+        borderRadius: 10,
+    },
 })

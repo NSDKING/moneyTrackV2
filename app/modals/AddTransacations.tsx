@@ -19,7 +19,6 @@ import categoriesList from '@/constants/categories';
 interface AddTransactionModalProps {
     visible: boolean;
     onClose: () => void;
-    wallets: Array<{ id: string; type: string; }>;
 }
 
 export default function AddTransactionModal({ visible, onClose }: AddTransactionModalProps) {
@@ -79,24 +78,28 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                         {/* Transaction Type Toggle */}
                         <View style={styles.typeToggle}>
                             <TouchableOpacity 
-                                style={[
-                                    styles.typeButton, 
-                                    isExpense && styles.typeButtonActive
-                                ]}
+                                style={[styles.typeButton, isExpense && styles.typeButtonActive]}
                                 onPress={() => setIsExpense(true)}
                             >
+                                <Ionicons 
+                                    name="remove-circle-outline" 
+                                    size={24} 
+                                    color={isExpense ? 'white' : Colors.CharcoalGray} 
+                                />
                                 <Text style={[
                                     styles.typeButtonText,
                                     isExpense && styles.typeButtonTextActive
                                 ]}>Expense</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
-                                style={[
-                                    styles.typeButton, 
-                                    !isExpense && styles.typeButtonActive
-                                ]}
+                                style={[styles.typeButton, !isExpense && styles.typeButtonActive]}
                                 onPress={() => setIsExpense(false)}
                             >
+                                <Ionicons 
+                                    name="add-circle-outline" 
+                                    size={24} 
+                                    color={!isExpense ? 'white' : Colors.CharcoalGray} 
+                                />
                                 <Text style={[
                                     styles.typeButtonText,
                                     !isExpense && styles.typeButtonTextActive
@@ -210,24 +213,28 @@ const styles = StyleSheet.create({
     },
     typeButton: {
         flex: 1,
-        paddingVertical: 10,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
         borderRadius: 8,
-    },
+        gap: 8,
+
+      },
     typeButtonActive: {
-        backgroundColor: 'white',
+        backgroundColor: Colors.BrightRed,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-    },
+     },
     typeButtonText: {
         color: '#666',
         fontWeight: '500',
     },
     typeButtonTextActive: {
-        color: Colors.CharcoalGray,
+        color:'white',
     },
     inputContainer: {
         marginBottom: 20,
