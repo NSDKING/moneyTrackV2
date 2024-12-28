@@ -1,4 +1,4 @@
-import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import transactionsList from '@/constants/transactions';
@@ -25,26 +25,7 @@ export default function Home() {
     const [budgetAmount, setBudgetAmount] = useState('');
     const [budgets, setBudgets] = useState(initialBudgets);
 
-    const handleBudgetUpdate = (action: 'add' | 'remove') => {
-        const amount = parseFloat(budgetAmount);
-        if (isNaN(amount) || amount <= 0) {
-            Alert.alert('Invalid Amount', 'Please enter a valid amount.');
-            return;
-        }
-
-        const updatedBudgets = { ...budgets };
-        if (action === 'add') {
-            updatedBudgets[selectedBudget].spent += amount;
-        } else if (action === 'remove') {
-            updatedBudgets[selectedBudget].spent -= amount;
-        }
-
-        setBudgets(updatedBudgets);
-        setIsBudgetModalVisible(false);
-        setBudgetAmount('');
-    };
-
-    const renderWalletCard = ({ item }) => (
+     const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
           <View style={styles.walletContent}>
             <View style={styles.walletLeft}>
@@ -211,19 +192,49 @@ export default function Home() {
                 animationType="slide"
                 transparent={true}
             >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Edit {selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)} Budget</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            value={budgetAmount}
-                            onChangeText={setBudgetAmount}
-                            keyboardType="numeric"
-                            placeholder="Enter amount"
-                        />
-  
+                <TouchableWithoutFeedback onPress={() => setIsBudgetModalVisible(false)}>
+                    <View style={styles.modalContainer}>
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                            <View style={styles.modalContent}>
+                                <Text style={styles.modalTitle}>
+                                    {selectedBudget ? `Edit ${selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)} Budget` : 'Create New Budget'}
+                                </Text>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    value={budgetAmount}
+                                    onChangeText={setBudgetAmount}
+                                    keyboardType="numeric"
+                                    placeholder="Enter amount"
+                                />
+                                <View style={styles.modalActions}>
+                                    <TouchableOpacity 
+                                        style={styles.modalButton} 
+                                        onPress={() => {
+                                            if (selectedBudget) {
+                                                handleBudgetUpdate('update'); // Update existing budget
+                                            } else {
+                                                handleBudgetUpdate('create'); // Create new budget
+                                            }
+                                        }}
+                                    >
+                                        <Text style={styles.modalButtonText}>{selectedBudget ? 'Save Changes' : 'Save Budget'}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        style={styles.modalButton} 
+                                        onPress={() => {
+                                            if (selectedBudget) {
+                                                handleBudgetDelete(selectedBudget as BudgetKey); // Delete budget
+                                            }
+                                        }}
+                                    >
+                                        <Text style={styles.modalButtonText}>Delete</Text>
+                                    </TouchableOpacity>
+    
+                                </View>
+                            </View>
+                        </TouchableWithoutFeedback>
                     </View>
-                </View>
+                </TouchableWithoutFeedback>
             </Modal>
 
         </View>
@@ -535,11 +546,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         width: '100%',
+        marginTop: 20,
     },
     modalButton: {
         backgroundColor: Colors.BrightRed,
         padding: 10,
-        borderRadius: 8,
+        borderRadius: 5,
         flex: 1,
         marginHorizontal: 5,
         alignItems: 'center',
