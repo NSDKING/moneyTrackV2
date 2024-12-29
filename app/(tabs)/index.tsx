@@ -1,12 +1,16 @@
 import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import transactionsList from '@/constants/transactions';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import walletLists from '@/constants/wallets';
 import AddTransactionModal from '../modals/AddTransacations';
 import AddTransferModal from '../modals/AddTrasnferModal';
-  
+import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
+import { Category, Transaction, Wallet } from '@/assets/types';
+import categoriesList from '@/constants/categories';
+
+
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
 const SPACING = 10;
@@ -23,14 +27,164 @@ export default function Home() {
     const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
     const [selectedBudget, setSelectedBudget] = useState('');
     const [budgetAmount, setBudgetAmount] = useState('');
-    const [budgets, setBudgets] = useState(initialBudgets);
+    const [wallets, setWallets] = useState<any[]>([]);  
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [budgets, setBudgets] = useState(initialBudgets); 
+    const [loading, setLoading]= useState<boolean>(false);
+ 
+
+    const createDatabase = async () => {
+        const dbPath = `${FileSystem.documentDirectory}sys.db`;
+        const db = await SQLite.openDatabaseAsync(dbPath);
+        try {
+            await db.execAsync(`
+                PRAGMA journal_mode = WAL;
+            
+                CREATE TABLE IF NOT EXISTS wallets (
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    user_id INTEGER NOT NULL, 
+                    name VARCHAR(255) NOT NULL, 
+                    balance DECIMAL(10, 2) NOT NULL DEFAULT 0,
+                    icon TEXT,                
+                    color TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)  
+                );
+            
+                CREATE TABLE IF NOT EXISTS transactions (
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,  
+                    wallet_id INTEGER NOT NULL,  
+                    category_id INTEGER,                    
+                    type TEXT CHECK(type IN ('deposit', 'withdrawal', 'transfer')) NOT NULL,  
+                    amount DECIMAL(10, 2) NOT NULL,               
+                    description VARCHAR(255),                    
+                    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                    transfer_to_wallet_id INTEGER,        
+                    is_deleted BOOLEAN DEFAULT FALSE,            
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    FOREIGN KEY (wallet_id) REFERENCES wallets(ID),  
+                    FOREIGN KEY (transfer_to_wallet_id) REFERENCES wallets(ID),  
+                    FOREIGN KEY (category_id) REFERENCES categories(ID)
+                 );
+            
+                CREATE TABLE IF NOT EXISTS categories (
+                    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    budgeted BOOLEAN DEFAULT FALSE,  
+                    budget_limit DECIMAL(10, 2),    
+                    start_date DATE NOT NULL,                 
+                    end_date DATE NOT NULL,
+                    icon TEXT,                
+                    color TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    type TEXT CHECK(type IN ('expense', 'income')) NOT NULL 
+                    );
+    
+            `);
+
+            const defaultStartDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
+            const defaultEndDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]; // One year from now
+
+            // Function to insert categories if they don't already exist
+            const insertCategoriesIfNotExists = async () => {
+                for (const category of categoriesList) {
+                    // Check if the category already exists
+                    const existingCategory = await db.getAllAsync(`SELECT * FROM categories WHERE name = ?`, [category.name]);
+                    const doesItExist = existingCategory.length === 0;
+                    console.log(existingCategory)
+                    if (doesItExist) {
+                        await db.runAsync(`
+                            INSERT INTO categories (name, icon, color, type, start_date, end_date)
+                            VALUES (?, ?, ?, ?, ?, ?);
+                        `, [category.name, category.icon, category.color, category.type, defaultStartDate, defaultEndDate]);
+                        console.log(`Inserted category: ${category.name}`);
+                    } else {
+                        console.log(`Category already exists: ${existingCategory.name}`);
+                    }
+                }
+            };
+
+            // Function to insert wallets if they don't already exist
+            const insertWalletsIfNotExists = async () => {
+                for (const wallet of walletLists) {
+                    // Check if the wallet already exists
+                    const existingWallet = await db.getAllAsync(`SELECT * FROM wallets WHERE name = ?`, [wallet.type]);
+                    const doesItExist = existingWallet.length === 0;
+                    if (doesItExist) {
+                        await db.runAsync(`
+                            INSERT INTO wallets (user_id, name, balance, icon, color)
+                            VALUES (?, ?, ?, ?, ?);
+                        `, [1, wallet.type, parseFloat(wallet.amount.replace(/,/g, '')), wallet.icon, wallet.color]);
+                     }
+                }
+            };
+
+            // Call the functions to insert categories and wallets
+            await insertCategoriesIfNotExists();
+            await insertWalletsIfNotExists();
+
+        } catch (error) {
+            console.error('Error inserting :', error);
+        }
+
+ 
+    }
+
+    
+    const getData = async () => {
+        try {
+            const dbPath = `${FileSystem.documentDirectory}sys.db`;
+            const db = await SQLite.openDatabaseAsync(dbPath);
+            console.log('Database opened');
+
+            const walletData = await db.getAllAsync('SELECT * FROM wallets');
+            const transactionData = await db.getAllAsync('SELECT * FROM transactions');
+            const categoriesData = await db.getAllAsync('SELECT * FROM categories');
+
+            setWallets(walletData);
+            setTransactions(transactionData);
+            setCategories(categoriesData);           
+
+        } catch (error) {
+            console.error('Error opening database:', error);
+        }
+    }         
+    const formatTransactionDate = (dateString: string): string => {
+        // Create a Date object from the input string
+        const date = new Date(dateString);
+        // Check if the date is valid
+        if (isNaN(date.getTime())) {
+            console.error("Invalid date format:", dateString);
+            return ""; // Return an empty string or handle the error as needed
+        }
+        // Format the date to "DD MMM"
+        const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+        return new Intl.DateTimeFormat('en-US', options).format(date);
+    };
+    
+ 
+    useEffect(()=>{
+
+        const initializeDatabase = async () => {
+            setLoading(true)
+            await createDatabase();
+            await getData();
+            setLoading(false)
+        };
+        initializeDatabase()
+      },[])
 
      const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
           <View style={styles.walletContent}>
             <View style={styles.walletLeft}>
-              <Text style={styles.walletTitle}>{item.type}</Text>
-              <Text style={styles.walletAmount}>Fcfa {item.amount}</Text>
+              <Text style={styles.walletTitle}>{item.name}</Text>
+              <Text style={styles.walletAmount}>Fcfa {item.balance}</Text>
             </View>
             <View style={styles.walletIcon}>
               <Ionicons name={item.icon} size={24} color={Colors.CharcoalGray} />
@@ -39,27 +193,32 @@ export default function Home() {
         </View>
       );
 
+      const getCateIcon = (ID:string) => {
+        const category = categories.find((category) => category.ID === ID);
+        return category ? category.icon : "help-circle-outline"; 
+    };
+
     const renderTransactionCard = ({item}) =>(
         <TouchableOpacity style={styles.transactionItem}>
             <View style={styles.transactionLeft}>
                 <View style={[
                     styles.transactionIcon,
-                    { backgroundColor: item.amount.includes('+') ? '#e8f5e9' : '#ffebee' }
+                    { backgroundColor: Number(item.amount) > 0 ? '#e8f5e9' : '#ffebee' } // Positive amount = green, Negative amount = red
                 ]}>
                     <Ionicons 
-                        name={item.icon} 
+                        name={getCateIcon(item.category_id)} 
                         size={20} 
-                        color={item.amount.includes('+') ? '#2e7d32' : '#c62828'} 
-                    />
+                        color={Number(item.amount) > 0 ? '#2e7d32' : '#c62828'} // Positive amount = green icon, Negative amount = red icon
+                        />
                 </View>
                 <View>
-                    <Text style={styles.transactionTitle}>{item.title}</Text>
-                    <Text style={styles.transactionDate}>{item.date}</Text>
+                    <Text style={styles.transactionTitle}>{item.description}</Text>
+                    <Text style={styles.transactionDate}>{formatTransactionDate(item.transaction_date)}</Text>
                 </View>
             </View>
             <Text style={[
                 styles.transactionAmount,
-                { color: item.amount.includes('+') ? '#2e7d32' : '#c62828' }
+                { color: Number(item.amount)  > 0 ? '#2e7d32' : '#c62828' }
             ]}>
                 {item.amount}
             </Text>
@@ -81,7 +240,7 @@ export default function Home() {
             </View>
             {/* Replace the single wallet box with FlatList */}
             <FlatList
-                data={walletLists}
+                data={wallets}
                 renderItem={renderWalletCard}
                 keyExtractor={(item) => item.id}
                 horizontal
@@ -104,7 +263,7 @@ export default function Home() {
 
                 <TouchableOpacity 
                     style={styles.actionButton} 
-                    onPress={() => setIsTransferModal(true)}
+                    onPress={ () =>{ setIsTransferModal(true) }}      
                 >
                     <View style={styles.actionButtonContent}>
                         <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
@@ -119,27 +278,49 @@ export default function Home() {
             
                 </View>
                 <View style={{ flex: 1 }}>
-                    <FlatList
-                        data={transactionsList}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderTransactionCard}
-                        showsVerticalScrollIndicator={false}
-                        style={styles.transactionsList}
-                        nestedScrollEnabled={true}
-                    />
+                    {
+                        loading ? (
+                            <Text style={styles.loadingMessage}>Loading Transactions...</Text>
+                        ) : (
+                            transactions.length === 0 ? (
+                                <Text style={styles.noTransactionsMessage}>No Transactions Available</Text>
+                            ) : (
+                                <FlatList
+                                    data={transactions}
+                                    keyExtractor={(item) => item.ID ? item.ID.toString() : Math.random().toString()} 
+                                    renderItem={renderTransactionCard}
+                                    showsVerticalScrollIndicator={false}
+                                    style={styles.transactionsList}
+                                    nestedScrollEnabled={true}
+                                />
+                            )
+                        )
+                    }
                 </View>
             </View>
         
-            <AddTransactionModal
-                visible={isAddTransactions}
-                onClose={() => setIsAddTransactions(false)}
-            />
+            {
+                !loading&&(
+                    <>
+                        <AddTransactionModal
+                            visible={isAddTransactions}
+                            onClose={() => setIsAddTransactions(false)}
+                            setTransactions={setTransactions}
+                            transactions={transactions}
+                            categories={categories}
+                            setCategories={setCategories}
+                        />
 
-            <AddTransferModal
-                    visible={isTransferModal}
-                    onClose={() => setIsTransferModal(false)}
-                    wallets={walletLists}
-            />
+                        <AddTransferModal
+                            visible={isTransferModal}
+                            onClose={() => setIsTransferModal(false)}
+                            wallets={walletLists}
+                        />
+        
+                    </>
+                    
+                )
+            }
 
             {/* Budget Section */}
             <View style={styles.transactionsContainer}>
@@ -237,6 +418,7 @@ export default function Home() {
                 </TouchableWithoutFeedback>
             </Modal>
 
+  
         </View>
 
     </ScrollView>
@@ -571,5 +753,17 @@ const styles = StyleSheet.create({
         height: '100%',
         backgroundColor: Colors.BrightRed, // Change this to a color that fits your theme
         borderRadius: 10,
+    },
+    loadingMessage: {
+        fontSize: 18,
+        color: '#888', // Adjust color as needed
+        textAlign: 'center',
+        marginTop: 20, // Add some margin for better spacing
+    },
+    noTransactionsMessage: {
+        fontSize: 18,
+        color: '#888', // Adjust color as needed
+        textAlign: 'center',
+        marginTop: 20, // Add some margin for better spacing
     },
 })

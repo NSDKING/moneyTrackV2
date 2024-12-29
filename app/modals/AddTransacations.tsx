@@ -12,51 +12,101 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
-import categoriesList from '@/constants/categories';
+import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
+import { AddTransactionModalProps, Transaction } from '@/assets/types';
 
- 
-
-interface AddTransactionModalProps {
-    visible: boolean;
-    onClose: () => void;
-}
-
-export default function AddTransactionModal({ visible, onClose }: AddTransactionModalProps) {
+export default function AddTransactionModal({ visible, onClose, setTransactions, transactions, categories, setCategories }: AddTransactionModalProps) {
     const [title, setTitle] = useState('');
     const [amount, setAmount] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedWallet, setSelectedWallet] = useState('');
     const [isExpense, setIsExpense] = useState(true);
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
+
+    const insertTransaction = async (walletId: number, categoryId: number | null, type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string, transferToWalletId: number | null, transactionDate: string) => {
+        try {
+            const dbPath = `${FileSystem.documentDirectory}sys.db`;
+            const db = await SQLite.openDatabaseAsync(dbPath);
+
+            await db.runAsync(`
+               INSERT INTO transactions (wallet_id, category_id, type, amount, description, transaction_date, transfer_to_wallet_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?);
+           `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
+
+            const transactionData = await db.getAllAsync('SELECT * FROM transactions');
+            console.log(transactionData);
+        } catch (error) {
+            console.error('Error inserting transaction:', error);
+        }
+    }
+
+    const getType = () => {
+       return isExpense ? 'withdrawal' : 'deposit';
+    };
+
     const handleSubmit = () => {
         // Validate inputs
-        if (!title || !amount || !selectedCategory || !selectedWallet) {
-            // Show error message
+        if (!title || !amount || !selectedCategory) {
+            console.error("Please fill in all fields.");
             return;
         }
-        // Create transaction object
-        const newTransaction = {
-            id: Date.now().toString(),
-            title,
-            amount: isExpense ? `-${amount}` : amount,
-            date: new Date().toISOString(),
-            category: selectedCategory,
-            walletId: selectedWallet,
-            // Add other fields as needed
+
+        // Create a new transaction object
+        const newTransaction: Transaction = {
+            ID: Number((transactions.length + 1)), // Generate a new ID (or use a better method)
+            amount: Number(isExpense ? `-${amount}` : amount), // Convert amount to a number
+            category_id: Number(selectedCategory),
+            description: title,
+            type: getType(), // Assuming getType() returns the correct type
+            wallet_id: 1,
+            transaction_date: date, // Add the date field
         };
-        // Handle the new transaction (pass to parent or save directly)
-        console.log(newTransaction);
-        
+
+        try {
+            // Insert the transaction into the database
+            insertTransaction(1, Number(selectedCategory), getType(), Number(isExpense ? `-${amount}` : amount), title, null, date);
+
+            // Update the transactions state
+            setTransactions([...transactions, newTransaction]);
+
+            console.log("Transaction added successfully:", newTransaction);
+        } catch (error) {
+            console.error("Error adding transaction:", error);
+        }
+
         // Reset form and close modal
         resetForm();
         onClose();
     };
+
     const resetForm = () => {
         setTitle('');
         setAmount('');
         setSelectedCategory('');
         setSelectedWallet('');
         setIsExpense(true);
+        setDate(new Date().toISOString().split('T')[0]); // Reset date to today
     };
+
+    // Function to filter categories based on isExpense
+    const filteredCategories = categories.filter(category => 
+        (isExpense && category.type === 'expense') || 
+        (!isExpense && category.type === 'income')
+    );
+
+    const handleAddCategory = () => {
+        // Logic to add a new category
+        console.log("Add new category");
+        // You can implement a modal or navigation to a category creation screen here
+    };
+
+    const handleOpenSettings = () => {
+        // Logic to open settings
+        console.log("Open settings");
+        // You can implement a modal or navigation to a settings screen here
+    };
+
     return (
         <Modal
             visible={visible}
@@ -86,10 +136,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                                     size={24} 
                                     color={isExpense ? 'white' : Colors.CharcoalGray} 
                                 />
-                                <Text style={[
-                                    styles.typeButtonText,
-                                    isExpense && styles.typeButtonTextActive
-                                ]}>Expense</Text>
+                                <Text style={[styles.typeButtonText, isExpense && styles.typeButtonTextActive]}>Expense</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={[styles.typeButton, !isExpense && styles.typeButtonActive]}
@@ -100,10 +147,7 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                                     size={24} 
                                     color={!isExpense ? 'white' : Colors.CharcoalGray} 
                                 />
-                                <Text style={[
-                                    styles.typeButtonText,
-                                    !isExpense && styles.typeButtonTextActive
-                                ]}>Income</Text>
+                                <Text style={[styles.typeButtonText, !isExpense && styles.typeButtonTextActive]}>Income</Text>
                             </TouchableOpacity>
                         </View>
                         {/* Amount Input */}
@@ -127,6 +171,16 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                                 placeholder="Transaction title"
                             />
                         </View>
+                        {/* Date Input */}
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.label}>Date</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={date}
+                                onChangeText={setDate}
+                                placeholder="YYYY-MM-DD"
+                            />
+                        </View>
                         {/* Category Selection */}
                         <Text style={styles.label}>Category</Text>
                         <ScrollView 
@@ -134,30 +188,26 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
                             showsHorizontalScrollIndicator={false}
                             style={styles.categoriesContainer}
                         >
-                            {categoriesList.map((category) => (
+                            {filteredCategories.map((category) => (
                                 <TouchableOpacity
-                                    key={category.id}
-                                    style={[
-                                        styles.categoryButton,
-                                        selectedCategory === category.id && {
-                                            backgroundColor: category.color
-                                        }
-                                    ]}
-                                    onPress={() => setSelectedCategory(category.id)}
+                                    key={category.ID}
+                                    style={[styles.categoryButton, Number(selectedCategory) === category.ID && { backgroundColor: category.color }]}
+                                    onPress={() => setSelectedCategory(category.ID.toString())}
                                 >
                                     <Ionicons 
                                         name={category.icon} 
                                         size={24} 
-                                        color={selectedCategory === category.id ? 'white' : category.color} 
+                                        color={Number(selectedCategory) === category.ID ? 'white' : category.color} 
                                     />
-                                    <Text style={[
-                                        styles.categoryText,
-                                        selectedCategory === category.id && { color: 'white' }
-                                    ]}>{category.name}</Text>
+                                    <Text style={[styles.categoryText, Number(selectedCategory) === category.ID && { color: 'white' }]}>{category.name}</Text>
                                 </TouchableOpacity>
                             ))}
+                            {/* Plus Button to add new category */}
+                            <TouchableOpacity style={styles.settingsButton} onPress={handleOpenSettings}>
+                                <Ionicons name="settings-outline" size={24} color="blue" />
+                                <Text style={styles.settingsText}>Settings</Text>
+                            </TouchableOpacity>
                         </ScrollView>
-                
                         {/* Submit Button */}
                         <TouchableOpacity 
                             style={styles.submitButton}
@@ -171,7 +221,6 @@ export default function AddTransactionModal({ visible, onClose }: AddTransaction
         </Modal>
     );
 }
-
 
 const styles = StyleSheet.create({
     container: {
@@ -295,12 +344,29 @@ const styles = StyleSheet.create({
         padding: 18,
         borderRadius: 12,
         alignItems: 'center',
-        marginTop: 150,
+        marginTop: 50,
         marginBottom: 30,
     },
     submitButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
+    },
+    noteInput: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    settingsButton: {
+        padding: 15,
+        borderRadius: 12,
+        marginRight: 10,
+        backgroundColor: '#f5f5f5',
+        alignItems: 'center',
+        minWidth: 100,
+    },
+    settingsText: {
+        marginTop: 5,
+        fontSize: 14,
+        fontWeight: '500',
     },
 });
