@@ -99,15 +99,11 @@ export default function Home() {
                     // Check if the category already exists
                     const existingCategory = await db.getAllAsync(`SELECT * FROM categories WHERE name = ?`, [category.name]);
                     const doesItExist = existingCategory.length === 0;
-                    console.log(existingCategory)
                     if (doesItExist) {
                         await db.runAsync(`
                             INSERT INTO categories (name, icon, color, type, start_date, end_date)
                             VALUES (?, ?, ?, ?, ?, ?);
                         `, [category.name, category.icon, category.color, category.type, defaultStartDate, defaultEndDate]);
-                        console.log(`Inserted category: ${category.name}`);
-                    } else {
-                        console.log(`Category already exists: ${existingCategory.name}`);
                     }
                 }
             };
@@ -143,8 +139,6 @@ export default function Home() {
         try {
             const dbPath = `${FileSystem.documentDirectory}sys.db`;
             const db = await SQLite.openDatabaseAsync(dbPath);
-            console.log('Database opened');
-
             const walletData = await db.getAllAsync('SELECT * FROM wallets');
             const transactionData = await db.getAllAsync('SELECT * FROM transactions');
             const categoriesData = await db.getAllAsync('SELECT * FROM categories');
