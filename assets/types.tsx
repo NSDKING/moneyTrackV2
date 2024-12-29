@@ -48,5 +48,20 @@ interface AddTransactionModalProps {
 
 }
 
+type Icon = {
+    id: number;
+    name: string;
+    label: string;
+};
 
-export { Wallet, Transaction, Category, AddTransactionModalProps };
+type CategoryIcons = {
+    [key: string]: Icon[]; // This allows any string key to index into an array of Icon
+};
+
+interface CategorySelectorProps {
+    selectedType: string; // Define the type for selectedType
+    setSelectedType: (type: string) => void; // Define the type for setSelectedType
+}
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons,CategorySelectorProps };
+

@@ -87,6 +87,8 @@ export default function Home() {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
                     type TEXT CHECK(type IN ('expense', 'income')) NOT NULL 
                     );
+
+
     
             `);
 

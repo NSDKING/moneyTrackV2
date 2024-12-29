@@ -13,8 +13,10 @@ const Colors = {
   lightBlue: '#3498db',
   lightGreen: '#2ecc71',
   BrightGreen: '#27ae60',  
-  BrightBlue: '#007BFF', 
-
+  BrightBlue: '#007BFF',
+  
+  darkGray: '#7f8c8d',
+  black: '#000000',
 };
 
 export default Colors;

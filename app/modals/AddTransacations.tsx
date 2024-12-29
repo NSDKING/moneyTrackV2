@@ -15,6 +15,7 @@ import Colors from '@/constants/Colors';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import { AddTransactionModalProps, Transaction } from '@/assets/types';
+import { useRouter } from 'expo-router';
 
 export default function AddTransactionModal({ visible, onClose, setTransactions, transactions, categories, setCategories }: AddTransactionModalProps) {
     const [title, setTitle] = useState('');
@@ -23,6 +24,7 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
     const [selectedWallet, setSelectedWallet] = useState('');
     const [isExpense, setIsExpense] = useState(true);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default to today's date
+    const router = useRouter();
 
     const insertTransaction = async (walletId: number, categoryId: number | null, type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string, transferToWalletId: number | null, transactionDate: string) => {
         try {
@@ -95,16 +97,18 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
         (!isExpense && category.type === 'income')
     );
 
-    const handleAddCategory = () => {
-        // Logic to add a new category
-        console.log("Add new category");
-        // You can implement a modal or navigation to a category creation screen here
-    };
+ 
 
     const handleOpenSettings = () => {
-        // Logic to open settings
-        console.log("Open settings");
-        // You can implement a modal or navigation to a settings screen here
+        if (categories) {
+            onClose();
+            router.push({
+                pathname: '/ManageCategories',
+                params: { categories: JSON.stringify(categories) },
+            });
+        } else {
+            console.warn('Categories are not defined');
+        }
     };
 
     return (
@@ -197,7 +201,7 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                                     <Ionicons 
                                         name={category.icon} 
                                         size={24} 
-                                        color={Number(selectedCategory) === category.ID ? 'white' : category.color} 
+                                        color={Number(selectedCategory) === category.ID ? 'white' : Colors.lightRed} 
                                     />
                                     <Text style={[styles.categoryText, Number(selectedCategory) === category.ID && { color: 'white' }]}>{category.name}</Text>
                                 </TouchableOpacity>
@@ -368,5 +372,18 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 14,
         fontWeight: '500',
+    },
+    addCategoryButton: {
+        padding: 15,
+        borderRadius: 12,
+        backgroundColor: '#f5f5f5',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    addCategoryText: {
+        marginTop: 5,
+        fontSize: 14,
+        fontWeight: '500',
+        color: 'green',
     },
 });
