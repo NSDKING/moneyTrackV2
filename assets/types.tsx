@@ -59,8 +59,8 @@ type CategoryIcons = {
 };
 
 interface CategorySelectorProps {
-    selectedType: string; // Define the type for selectedType
-    setSelectedType: (type: string) => void; // Define the type for setSelectedType
+    categoryType: string; // Define the type for selectedType
+    setCategoryType: (type: string) => void; // Define the type for setSelectedType
 }
 
 export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons,CategorySelectorProps };

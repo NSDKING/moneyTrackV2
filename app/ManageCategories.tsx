@@ -10,7 +10,7 @@ import { CategorySelectorProps } from '@/assets/types';
 
 
 
-const CategorySelector: React.FC<CategorySelectorProps> = ({ selectedType, setSelectedType }) => {
+const CategorySelector: React.FC<CategorySelectorProps> = ({ categoryType, setCategoryType }) => {
     const types = [
         { label: 'Expense', value: 'expense' },
         { label: 'Income', value: 'income' },
@@ -23,9 +23,9 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ selectedType, setSe
                     key={type.value}
                     style={[
                         styles.iconButton,
-                        selectedType === type.value && { backgroundColor: Colors.lightGray },
+                        categoryType === type.value && { backgroundColor: Colors.lightGray },
                     ]}
-                    onPress={() => setSelectedType(type.value)}
+                    onPress={() => setCategoryType(type.value)}
                     accessibilityLabel={`Select ${type.label}`} // Accessibility label
                 >
                     <Text style={styles.buttonText}>{type.label}</Text>
@@ -47,7 +47,6 @@ const ManageCategories = () => {
     const [categoryType, setCategoryType] = useState('');
     const [categoryColor, setCategoryColor] = useState('#FFFFFF'); // Default color
     const [selectedIcon, setSelectedIcon] = useState<string>('');
-    const [selectedType, setSelectedType] = useState<string>('');
     const [loading, setLoading] = useState(false); // State to manage loading status
 
 
@@ -208,8 +207,8 @@ const ManageCategories = () => {
                         />
                         <View>
                             <CategorySelector
-                                selectedType={selectedType}
-                                setSelectedType={setSelectedType}
+                                categoryType={categoryType}
+                                setCategoryType={setCategoryType}
                             />
                         </View>
 
