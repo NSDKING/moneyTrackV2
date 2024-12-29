@@ -7,7 +7,6 @@ import AddTransactionModal from '../modals/AddTransacations';
 import AddTransferModal from '../modals/AddTrasnferModal';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
-import { Category, Transaction, Wallet } from '@/assets/types';
 import categoriesList from '@/constants/categories';
 
 
@@ -30,7 +29,11 @@ export default function Home() {
     const [wallets, setWallets] = useState<any[]>([]);  
     const [transactions, setTransactions] = useState<any[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
-    const [budgets, setBudgets] = useState(initialBudgets); 
+    const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number } }>({
+        food: { total: 2000, spent: 800 },
+        transport: { total: 1000, spent: 300 },
+        goingOut: { total: 1500, spent: 600 },
+    }); 
     const [loading, setLoading]= useState<boolean>(false);
  
 
@@ -179,6 +182,62 @@ export default function Home() {
         initializeDatabase()
       },[])
 
+
+const getBalance = () => {
+    if (transactions.length === 0) {
+        return 0;
+    } else {
+        const totalBalance = transactions.reduce((accumulator, transaction) => {
+            const amount = transaction.amount ? String(transaction.amount).replace(/,/g, '') : '0';
+            return accumulator + parseFloat(amount);
+        }, 0);
+
+        return totalBalance;
+    }
+};
+
+
+
+
+    const monthlyExpense = () => {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth(); // 0-indexed (0 = January, 11 = December)
+        const currentYear = currentDate.getFullYear();
+            // Filter transactions to include only expenses from the current month
+        const monthlyExpenses = transactions.filter(transaction => {
+            const transactionDate = new Date(transaction.transaction_date); // Assuming transaction_date is in a valid format
+            return (
+                transaction.type === 'withdrawal' && // Assuming 'withdrawal' indicates an expense
+                transactionDate.getMonth() === currentMonth &&
+                transactionDate.getFullYear() === currentYear
+            );
+            });
+        // Calculate the total monthly expenses
+        const totalMonthlyExpense = monthlyExpenses.reduce((accumulator, transaction) => {
+            // Check if transaction.amount is defined and is a string
+            const amount = transaction.amount;
+            if (typeof amount === 'string') {
+                return accumulator + parseFloat(amount.replace(/,/g, '')); // Remove commas and convert to float
+            } else if (typeof amount === 'number') {
+                return accumulator + amount; // If it's already a number, just add it
+            } else {
+                console.warn(`Invalid amount for transaction: ${JSON.stringify(transaction)}`); // Log the invalid transaction
+                return accumulator; // Skip this transaction
+            }
+        }, 0);
+
+        // Format the total monthly expense
+        return formatAmount(totalMonthlyExpense);
+    };
+
+    // Function to format the amount
+    const formatAmount = (amount: number): string => {
+        if (amount === 0) return "0"; // Handle zero case
+        const absAmount = Math.abs(amount);
+        const formattedAmount = (absAmount / 1000).toFixed(0); // Divide by 1000 and round to nearest integer
+        return `${formattedAmount}K`; // Append 'K' for thousands
+    };
+
      const renderWalletCard = ({ item }) => (
         <View style={styles.walletBox}>
           <View style={styles.walletContent}>
@@ -228,12 +287,20 @@ export default function Home() {
     <ScrollView style={styles.container}>
          
         <View style={{padding:10}}>
-            <View style={styles.HeaderLeft}>
+            <View style={styles.HeaderLeft}>Y
                 <Text style={{fontSize:20, fontWeight:'500', color:Colors.CharcoalGray }}>Total Balance</Text>
-                <Text style={{fontSize:28, fontWeight:'700'}}>Fcfa 150,000</Text>
+                {loading ? (
+                    <Text style={{fontSize:28, fontWeight: '700'}}>Loading...</Text>
+                ) : (
+                    <Text style={{fontSize:28, fontWeight: '700'}}>Fcfa {getBalance()}</Text>
+                )}
                 <View style={styles.smallBoxContainer}>
                     <View style={styles.smallBox}>
-                    <Text style={styles.smallBoxText}>Fcfa 15k</Text>
+                        {loading ? (
+                            <Text style={styles.smallBoxText}>Loading...</Text>
+                        ) : (
+                            <Text style={styles.smallBoxText}>Fcfa {monthlyExpense()}</Text>
+                        )}
                     </View>
                     <Text style={styles.smallBoxText}>monthly expense &gt;</Text>            
                 </View>
