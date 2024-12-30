@@ -1,4 +1,4 @@
-import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
@@ -8,6 +8,8 @@ import AddTransferModal from '../modals/AddTrasnferModal';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import categoriesList from '@/constants/categories';
+import { useAppContext } from '@/context/AppContext';
+import { Wallet, Transaction, Category } from '@/assets/types';
 
 
 const { width } = Dimensions.get('window');
@@ -26,9 +28,9 @@ export default function Home() {
     const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
     const [selectedBudget, setSelectedBudget] = useState('');
     const [budgetAmount, setBudgetAmount] = useState('');
-    const [wallets, setWallets] = useState<any[]>([]);  
-    const [transactions, setTransactions] = useState<any[]>([]);
-    const [categories, setCategories] = useState<any[]>([]);
+    const { wallets, setWallets, transactions, setTransactions, categories, setCategories } = useAppContext();
+
+
     const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number } }>({
         food: { total: 2000, spent: 800 },
         transport: { total: 1000, spent: 300 },
@@ -141,9 +143,9 @@ export default function Home() {
         try {
             const dbPath = `${FileSystem.documentDirectory}sys.db`;
             const db = await SQLite.openDatabaseAsync(dbPath);
-            const walletData = await db.getAllAsync('SELECT * FROM wallets');
-            const transactionData = await db.getAllAsync('SELECT * FROM transactions');
-            const categoriesData = await db.getAllAsync('SELECT * FROM categories');
+            const walletData: Wallet[] = await db.getAllAsync('SELECT * FROM wallets');
+            const transactionData: Transaction[] = await db.getAllAsync('SELECT * FROM transactions');
+            const categoriesData: Category[] = await db.getAllAsync('SELECT * FROM categories');
 
             setWallets(walletData);
             setTransactions(transactionData);
@@ -234,7 +236,7 @@ const getBalance = () => {
         return `${formattedAmount}K`; // Append 'K' for thousands
     };
 
-     const renderWalletCard = ({ item }) => (
+     const renderWalletCard = ({ item }: { item: Wallet }) => (
         <View style={styles.walletBox}>
           <View style={styles.walletContent}>
             <View style={styles.walletLeft}>
@@ -249,11 +251,11 @@ const getBalance = () => {
       );
 
       const getCateIcon = (ID:string) => {
-        const category = categories.find((category) => category.ID === ID);
+        const category = categories.find((category) => category.ID.toString() === ID);
         return category ? category.icon : "help-circle-outline"; 
     };
 
-    const renderTransactionCard = ({item}) =>(
+    const renderTransactionCard = ({ item }: { item: Transaction }) => (
         <TouchableOpacity style={styles.transactionItem}>
             <View style={styles.transactionLeft}>
                 <View style={[
@@ -261,7 +263,7 @@ const getBalance = () => {
                     { backgroundColor: Number(item.amount) > 0 ? '#e8f5e9' : '#ffebee' } // Positive amount = green, Negative amount = red
                 ]}>
                     <Ionicons 
-                        name={getCateIcon(item.category_id)} 
+                        name={getCateIcon(item.category_id.toString())} 
                         size={20} 
                         color={Number(item.amount) > 0 ? '#2e7d32' : '#c62828'} // Positive amount = green icon, Negative amount = red icon
                         />
@@ -305,7 +307,7 @@ const getBalance = () => {
             <FlatList
                 data={wallets}
                 renderItem={renderWalletCard}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.ID.toString()}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={CARD_WIDTH + SPACING}

@@ -17,7 +17,7 @@ import * as FileSystem from 'expo-file-system';
 import { AddTransactionModalProps, Transaction } from '@/assets/types';
 import { useRouter } from 'expo-router';
 
-export default function AddTransactionModal({ visible, onClose, setTransactions, transactions, categories, setCategories }: AddTransactionModalProps) {
+export default function AddTransactionModal({ visible, onClose, setTransactions, transactions, categories }: AddTransactionModalProps) {
     const [title, setTitle] = useState('');
     const [amount, setAmount] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');

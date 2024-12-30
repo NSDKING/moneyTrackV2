@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TextInput, Button, Modal, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import categoryIcons from '@/constants/iconList';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import Colors from '@/constants/Colors'; // Assuming you have a Colors file for consistent color usage
 import { CategorySelectorProps } from '@/assets/types';
+import { useAppContext } from '@/context/AppContext';
 
 
 
@@ -35,11 +36,8 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ categoryType, setCa
     );
 };
 
-const ManageCategories = () => {
-    const { categories: categoriesParam } = useLocalSearchParams();
-    const router = useRouter();
-    
-    const [categories, setCategories] = useState<any[]>(JSON.parse(categoriesParam || '[]'));
+const ManageCategories = () => {    
+    const { categories, setCategories } = useAppContext();
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentCategory, setCurrentCategory] = useState<any>(null);
@@ -95,7 +93,7 @@ const ManageCategories = () => {
         ));
      ;
     }
-     const addCategory = async (db: any) => {
+    const addCategory = async (db: any) => {
         const defaultStartDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
         const defaultEndDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]; // One year from now
          await db.runAsync(`
@@ -106,11 +104,12 @@ const ManageCategories = () => {
         const newCategory = {
             id: (categories.length + 1).toString(),
             name: categoryName,
-            categoryColor,
+            categoryColore:categoryColor,
             icon: selectedIcon,
             type: categoryType,
         };
         setCategories([...categories, newCategory]);
+        console.log(newCategory)
      ;
     }
 
@@ -133,6 +132,7 @@ const ManageCategories = () => {
     }
 
     const handleDeleteCategory = (id: string) => {
+        console.log("id a suprimé memememememememememe", id)
         Alert.alert(
             "Delete Category",
             "Are you sure you want to delete this category? This action cannot be undone.",
@@ -148,6 +148,7 @@ const ManageCategories = () => {
         try {
             const dbPath = `${FileSystem.documentDirectory}sys.db`;
             const db = await SQLite.openDatabaseAsync(dbPath);
+            console.log('Deleting category with ID:', id);
 
             // Delete the category from the database
             await db.runAsync(`
@@ -156,10 +157,14 @@ const ManageCategories = () => {
             `, [id]);
 
             // Update local state to remove the deleted category
-            setCategories(categories.filter(cat => cat.id !== id));
+            console.log("before")
+            console.log(categories)
+            console.log("after")
+            setCategories(categories.filter(cat => cat.ID !== id));
             Alert.alert("Success", "Category deleted successfully.");
+            console.log(categories)
         } catch (error) {
-            console.error('Error deleting category:', error);
+            console.error('Error deleting category:', error.message);
             Alert.alert("Error", "There was an issue deleting the category. Please try again.");
         } finally {
             setLoading(false); // Reset loading state
@@ -185,7 +190,7 @@ const ManageCategories = () => {
                             <TouchableOpacity onPress={() => openModal(item)}>
                                 <Ionicons name="pencil-outline" size={24} color="white" />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDeleteCategory(item.id)}>
+                            <TouchableOpacity onPress={() => handleDeleteCategory(item.ID)}>
                                 <Ionicons name="trash-outline" size={24} color="white" />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => handleTransformToBudget(item.id)}>
