@@ -104,12 +104,12 @@ const ManageCategories = () => {
         const newCategory = {
             id: (categories.length + 1).toString(),
             name: categoryName,
-            categoryColore:categoryColor,
+            color:categoryColor,
             icon: selectedIcon,
             type: categoryType,
         };
         setCategories([...categories, newCategory]);
-        console.log(newCategory)
+    
      ;
     }
 
