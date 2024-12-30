@@ -75,7 +75,7 @@ const ManageCategories = () => {
     }
 
     const updateCategory = async (db:any) => {
-        const { id } = currentCategory; // Destructure for clarity
+        const { ID } = currentCategory; // Destructure for clarity
         await db.runAsync(`
             UPDATE categories
             SET 
@@ -86,10 +86,10 @@ const ManageCategories = () => {
                 start_date = ?, 
                 end_date = ?
             WHERE id = ?;
-        `, [categoryName, selectedIcon, categoryColor, categoryType, currentCategory.start_date, currentCategory.end_date, id]);
+        `, [categoryName, selectedIcon, categoryColor, categoryType, currentCategory.start_date, currentCategory.end_date, ID]);
          // Update local state
         setCategories(categories.map(cat => 
-            cat.id === id ? { ...cat, name: categoryName, categoryColor, icon: selectedIcon, type: categoryType } : cat
+            cat.ID === ID ? { ...cat, name: categoryName, categoryColor, icon: selectedIcon, type: categoryType } : cat
         ));
      ;
     }
