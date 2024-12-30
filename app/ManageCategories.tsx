@@ -42,7 +42,7 @@ const ManageCategories = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentCategory, setCurrentCategory] = useState<any>(null);
     const [categoryName, setCategoryName] = useState('');
-    const [categoryType, setCategoryType] = useState('');
+    const [categoryType, setCategoryType] = useState<'expense' | 'income' | null>(null);
     const [categoryColor, setCategoryColor] = useState('#FFFFFF'); // Default color
     const [selectedIcon, setSelectedIcon] = useState<string>('');
     const [loading, setLoading] = useState(false); // State to manage loading status
@@ -114,6 +114,12 @@ const ManageCategories = () => {
     }
 
     const handleSaveCategory = async () => {
+        // Validate that all fields are filled and a type is selected
+        if (!categoryName || !categoryColor || !selectedIcon || !categoryType) {
+            Alert.alert("Validation Error", "Please fill in all fields and select either Expense or Income.");
+            return; // Exit the function if validation fails
+        }
+
         const dbPath = `${FileSystem.documentDirectory}sys.db`;
         const db = await SQLite.openDatabaseAsync(dbPath);
          try {
