@@ -80,5 +80,16 @@ interface AddBudgetModalProps {
     selectedCategory: string;
 }
 
-export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps };
+// Define the type for the budget_Tracking table
+interface BudgetTracking {
+    id: number; // Primary key
+    next_rest: string; // TIMESTAMP, can be represented as a string
+    amount_spent: number; // DECIMAL(10, 2)
+    budget_limit: number; // DECIMAL(10, 2)
+    category_id: number; // Foreign key referencing categories(ID)
+    created_at: string; // TIMESTAMP, can be represented as a string
+    updated_at: string; // TIMESTAMP, can be represented as a string
+}
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking };
 

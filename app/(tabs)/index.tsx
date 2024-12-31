@@ -9,7 +9,7 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import categoriesList from '@/constants/categories';
 import { useAppContext } from '@/context/AppContext';
-import { Wallet, Transaction, Category } from '@/assets/types';
+import { Wallet, Transaction, Category, BudgetTracking } from '@/assets/types';
 
 
 const { width } = Dimensions.get('window');
@@ -26,15 +26,15 @@ export default function Home() {
     const [isAddTransactions, setIsAddTransactions] = useState(false);
     const [isTransferModal, setIsTransferModal] = useState(false);
     const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
+    const [BudgetArray, setBudgetArray]=useState<Category[]>([]);
+    const [BudgetTracking, setBudgetTracking]=useState<BudgetTracking[]>([]);
     const [selectedBudget, setSelectedBudget] = useState('');
     const [budgetAmount, setBudgetAmount] = useState('');
     const { wallets, setWallets, transactions, setTransactions, categories, setCategories } = useAppContext();
 
 
     const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number } }>({
-        food: { total: 2000, spent: 800 },
-        transport: { total: 1000, spent: 300 },
-        goingOut: { total: 1500, spent: 600 },
+ 
     }); 
     const [loading, setLoading]= useState<boolean>(false);
  
@@ -155,10 +155,17 @@ export default function Home() {
             const walletData: Wallet[] = await db.getAllAsync('SELECT * FROM wallets');
             const transactionData: Transaction[] = await db.getAllAsync('SELECT * FROM transactions');
             const categoriesData: Category[] = await db.getAllAsync('SELECT * FROM categories');
+            const BudgetTrackingData: BudgetTracking[] = await db.getAllAsync('SELECT * FROM budget_Tracking');
 
             setWallets(walletData);
             setTransactions(transactionData);
-            setCategories(categoriesData);           
+            setCategories(categoriesData);      
+            setBudgetTracking(BudgetTrackingData)
+            console.log(BudgetTrackingData)
+
+            const filteredCategories = categories.filter(category => category.budgeted !== false);
+            setBudgetArray(filteredCategories)   
+            console.log(filteredCategories)   
 
         } catch (error) {
             console.error('Error opening database:', error);
@@ -186,7 +193,62 @@ export default function Home() {
             await getData();
             setLoading(false)
         };
-        initializeDatabase()
+        const calculateBudgets = async () => {
+            const dbPath = `${FileSystem.documentDirectory}sys.db`;
+            const db = await SQLite.openDatabaseAsync(dbPath);
+            const updatedBudgets: { [key: string]: { total: number; spent: number } } = {}; // Temporary object to hold updated budgets
+            const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+
+            BudgetArray.forEach(async (budget) => {
+                // Find the last matching tracker without modifying the original array
+                const lastMatchingTracker = BudgetTracking.slice().reverse().find(item => item.id === budget.ID); 
+                let totalSpent = 0; // Initialize total spent for the current budget
+
+                transactions.forEach(transaction => {
+                    const categoryId = transaction.category_id; // Get the category ID from the transaction
+
+                    // Check if the transaction category matches the current budget ID
+                    if (categoryId === budget.ID) {
+                        totalSpent += transaction.amount; // Accumulate the spent amount
+                    }
+                });
+
+                // Update the temporary object with the budget details
+                updatedBudgets[budget.name] = {
+                    total: budget.budgetLimit,
+                    spent: totalSpent,
+                };
+
+                // Check if next_rest matches today's date
+                if (lastMatchingTracker) {
+                    // Parse the next_rest date
+                    const nextRestDate = new Date(lastMatchingTracker.next_rest);
+                    
+                    // Calculate the number of days until the next Monday
+                    const daysUntilNextMonday = (8 - nextRestDate.getDay()) % 7; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                    
+                    // Add the days to get the next Monday
+                    nextRestDate.setDate(nextRestDate.getDate() + daysUntilNextMonday);
+                    
+                    try {
+                        await db.runAsync(`
+                            INSERT INTO budget_Tracking (next_rest, amount_spent, created_at)
+                            VALUES (?, ?, CURRENT_TIMESTAMP);
+                        `, [nextRestDate.toISOString(), totalSpent]); // Use the updated next_rest date
+                    } catch (error) {
+                        console.error('Error inserting into budget_Tracking:', error);
+                    }
+                }
+            });
+
+            // Update the state once with the accumulated budget data
+            setBudgets(prevBudgets => ({
+                ...prevBudgets,
+                ...updatedBudgets, // Merge the updated budgets into the existing state
+            }));
+        };
+        initializeDatabase();
+        calculateBudgets();
       },[])
 
 

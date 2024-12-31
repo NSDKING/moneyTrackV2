@@ -31,6 +31,12 @@ const AddBudgetModal: React.FC<AddBudgetModalProps> = ({ visible, onClose, selec
                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
             `, [nextMonday.toISOString(), amountSpent, budgetLimit, categoryId]);
 
+            await db.runAsync(`
+                UPDATE categories
+                SET budgeted = TRUE
+                WHERE ID = ?;
+            `, [categoryId]);
+
             console.log('Budget tracking entry inserted successfully');
         } catch (error) {
             console.error('Error inserting budget tracking entry:', error);
