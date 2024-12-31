@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system';
 import Colors from '@/constants/Colors'; // Assuming you have a Colors file for consistent color usage
 import { CategorySelectorProps } from '@/assets/types';
 import { useAppContext } from '@/context/AppContext';
+import AddBudgetModal from './modals/AddBudgetModal'; // Adjust the import path as necessary
 
 
 
@@ -46,6 +47,7 @@ const ManageCategories = () => {
     const [categoryColor, setCategoryColor] = useState('#FFFFFF'); // Default color
     const [selectedIcon, setSelectedIcon] = useState<string>('');
     const [loading, setLoading] = useState(false); // State to manage loading status
+    const [isBudgetModalVisible, setBudgetModalVisible] = useState(false);
 
 
 
@@ -138,7 +140,6 @@ const ManageCategories = () => {
     }
 
     const handleDeleteCategory = (id: string) => {
-        console.log("id a suprimé memememememememememe", id)
         Alert.alert(
             "Delete Category",
             "Are you sure you want to delete this category? This action cannot be undone.",
@@ -179,7 +180,8 @@ const ManageCategories = () => {
 
     const handleTransformToBudget = (id) => {
         // Logic to transform category into a budget
-        Alert.alert("Transform", `Category ${id} transformed into a budget!`);
+        setCurrentCategory(id)
+        setBudgetModalVisible(true)
 
     }
     return (
@@ -199,7 +201,7 @@ const ManageCategories = () => {
                             <TouchableOpacity onPress={() => handleDeleteCategory(item.ID)}>
                                 <Ionicons name="trash-outline" size={24} color="white" />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleTransformToBudget(item.id)}>
+                            <TouchableOpacity onPress={() => handleTransformToBudget(item.ID)}>
                                 <Ionicons name="cash-outline" size={24} color="white" />
                             </TouchableOpacity>
                         </View>
@@ -207,7 +209,7 @@ const ManageCategories = () => {
                 )}
             />
             <Button title="Add Category" onPress={() => openModal()} color="#4CAF50" />
-            <Modal visible={modalVisible} animationType="slide">
+             <Modal visible={modalVisible} animationType="slide">
                 <View style={styles.modalContent}>
                     <View style={{marginTop:50}}>
                         <TextInput
@@ -247,6 +249,11 @@ const ManageCategories = () => {
                     <Button title="Cancel" onPress={() => setModalVisible(false)} color="#FF5722" />
                 </View>
             </Modal>
+            <AddBudgetModal
+                visible={isBudgetModalVisible}
+                onClose={() => setBudgetModalVisible(false)}
+                selectedCategory={currentCategory}
+            />
         </View>
     );
 };

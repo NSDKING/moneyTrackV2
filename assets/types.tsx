@@ -74,5 +74,11 @@ interface AppContextType {
     setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
 }
 
-export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType };
+interface AddBudgetModalProps {
+    visible: boolean;
+    onClose: () => void;
+    selectedCategory: string;
+}
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps };
 

@@ -90,7 +90,16 @@ export default function Home() {
                     type TEXT CHECK(type IN ('expense', 'income')) NOT NULL 
                     );
 
-
+                CREATE TABLE IF NOT EXISTS budget_Tracking (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    next_rest TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                    amount_spent DECIMAL(10, 2),    
+                    budget_limit DECIMAL(10, 2),    
+                    category_id INTEGER,                   
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (category_id) REFERENCES categories(ID)
+                );
     
             `);
 
@@ -255,6 +264,8 @@ const getBalance = () => {
         return category ? category.icon : "help-circle-outline"; 
     };
 
+    const filteredTransactions = transactions.filter(transaction => transaction.type !== 'transfer'); // Filter out transfers
+
     const renderTransactionCard = ({ item }: { item: Transaction }) => (
         <TouchableOpacity style={styles.transactionItem}>
             <View style={styles.transactionLeft}>
@@ -351,7 +362,7 @@ const getBalance = () => {
                                 <Text style={styles.noTransactionsMessage}>No Transactions Available</Text>
                             ) : (
                                 <FlatList
-                                    data={transactions}
+                                    data={filteredTransactions}
                                     keyExtractor={(item) => item.ID ? item.ID.toString() : Math.random().toString()} 
                                     renderItem={renderTransactionCard}
                                     showsVerticalScrollIndicator={false}

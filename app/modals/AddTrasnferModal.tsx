@@ -8,11 +8,16 @@ import {
    TextInput,
    ScrollView,
    KeyboardAvoidingView,
-   Platform
+   Platform,
+   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
- 
+import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+
 
 interface AddTransferModalProps {
    visible: boolean;
@@ -25,38 +30,76 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
    const [sourceWallet, setSourceWallet] = useState('');
    const [destinationWallet, setDestinationWallet] = useState('');
    const [note, setNote] = useState('');
-    const handleSubmit = () => {
+   const [transactionDate, setTransactionDate] = useState(new Date());
+   const [showDatePicker, setShowDatePicker] = useState(false);
+
+   const insertTransaction = async (walletId: string, categoryId: number | null, type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string, transferToWalletId: string | null, transactionDate: string) => {
+       try {
+           const dbPath = `${FileSystem.documentDirectory}sys.db`;
+           const db = await SQLite.openDatabaseAsync(dbPath);
+
+           await db.runAsync(`
+               INSERT INTO transactions (
+                   wallet_id, 
+                   category_id, 
+                   type, 
+                   amount, 
+                   description, 
+                   transaction_date, 
+                   transfer_to_wallet_id,
+                   created_at
+               )
+               VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
+           `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
+
+           const transactionData = await db.getAllAsync('SELECT * FROM transactions');
+           console.log(transactionData);
+       } catch (error) {
+           console.error('Error inserting transaction:', error);
+       }
+   };
+
+   const handleSubmit = async () => {
        // Validate inputs
        if (!amount || !sourceWallet || !destinationWallet) {
-           // Show error message
+           Alert.alert("Validation Error", "Please fill in all fields.");
            return;
        }
-        if (sourceWallet === destinationWallet) {
-           // Show error - can't transfer to same wallet
+       if (sourceWallet === destinationWallet) {
+           Alert.alert("Validation Error", "You cannot transfer to the same wallet.");
            return;
        }
-        // Create transfer object
+
+       // Create transfer object
        const newTransfer = {
            id: Date.now().toString(),
            title: `Transfer to ${wallets.find(w => w.id === destinationWallet)?.type}`,
            amount,
-           date: new Date().toISOString(),
+           date: transactionDate.toISOString(),
            sourceWallet,
            destinationWallet,
            note,
            icon: 'swap-horizontal-outline'
        };
-        console.log(newTransfer);
+       console.log(newTransfer);
+
+       // Insert transactions for both wallets
+       await insertTransaction(sourceWallet, null, 'transfer', parseFloat(amount), note, destinationWallet, transactionDate.toISOString());
+       await insertTransaction(destinationWallet, null, 'transfer', parseFloat(amount), note, null, transactionDate.toISOString());
+
        resetForm();
        onClose();
    };
-    const resetForm = () => {
+
+   const resetForm = () => {
        setAmount('');
        setSourceWallet('');
        setDestinationWallet('');
        setNote('');
+       setTransactionDate(new Date());
    };
-    return (
+
+   return (
        <Modal
            visible={visible}
            animationType="slide"
@@ -73,7 +116,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                            <Ionicons name="close" size={24} color={Colors.CharcoalGray} />
                        </TouchableOpacity>
                    </View>
-                    <ScrollView style={styles.form}>
+                   <ScrollView style={styles.form}>
                        {/* Amount Input */}
                        <View style={styles.inputContainer}>
                            <Text style={styles.label}>Amount</Text>
@@ -85,7 +128,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                                placeholder="0.0000"
                            />
                        </View>
-                        {/* Source Wallet Selection */}
+                       {/* Source Wallet Selection */}
                        <Text style={styles.label}>From Wallet</Text>
                        <ScrollView 
                            horizontal
@@ -96,32 +139,23 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                            {wallets.map((wallet) => (
                                <TouchableOpacity
                                    key={wallet.id}
-                                   style={[
-                                       styles.walletButton,
-                                       sourceWallet === wallet.id && styles.walletButtonActive
-                                   ]}
+                                   style={[styles.walletButton, sourceWallet === wallet.id && styles.walletButtonActive]}
                                    onPress={() => setSourceWallet(wallet.id)}
                                >
-                                   <Text style={[
-                                       styles.walletText,
-                                       sourceWallet === wallet.id && styles.walletTextActive
-                                   ]}>
+                                   <Text style={[styles.walletText, sourceWallet === wallet.id && styles.walletTextActive]}>
                                        {wallet.type}
                                    </Text>
-                                   <Text style={[
-                                       styles.walletAmount,
-                                       sourceWallet === wallet.id && styles.walletTextActive
-                                   ]}>
+                                   <Text style={[styles.walletAmount, sourceWallet === wallet.id && styles.walletTextActive]}>
                                        {wallet.amount}
                                    </Text>
                                </TouchableOpacity>
                            ))}
                        </ScrollView>
-                        {/* Transfer Icon */}
+                       {/* Transfer Icon */}
                        <View style={styles.transferIconContainer}>
                            <Ionicons name="arrow-down" size={24} color={Colors.CharcoalGray} />
                        </View>
-                        {/* Destination Wallet Selection */}
+                       {/* Destination Wallet Selection */}
                        <Text style={styles.label}>To Wallet</Text>
                        <ScrollView 
                            horizontal
@@ -132,28 +166,39 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                            {wallets.map((wallet) => (
                                <TouchableOpacity
                                    key={wallet.id}
-                                   style={[
-                                       styles.walletButton,
-                                       destinationWallet === wallet.id && styles.walletButtonActive
-                                   ]}
+                                   style={[styles.walletButton, destinationWallet === wallet.id && styles.walletButtonActive]}
                                    onPress={() => setDestinationWallet(wallet.id)}
                                >
-                                   <Text style={[
-                                       styles.walletText,
-                                       destinationWallet === wallet.id && styles.walletTextActive
-                                   ]}>
+                                   <Text style={[styles.walletText, destinationWallet === wallet.id && styles.walletTextActive]}>
                                        {wallet.type}
                                    </Text>
-                                   <Text style={[
-                                       styles.walletAmount,
-                                       destinationWallet === wallet.id && styles.walletTextActive
-                                   ]}>
+                                   <Text style={[styles.walletAmount, destinationWallet === wallet.id && styles.walletTextActive]}>
                                        {wallet.amount}
                                    </Text>
                                </TouchableOpacity>
                            ))}
                        </ScrollView>
-                        {/* Note Input */}
+                       {/* Date Picker */}
+                       <View style={styles.inputContainer}>
+                           <Text style={styles.label}>Transaction Date</Text>
+                           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                               <Text>{transactionDate.toLocaleDateString()}</Text>
+                           </TouchableOpacity>
+                           {showDatePicker && (
+                               <DateTimePicker
+                                   value={transactionDate}
+                                   mode="date"
+                                   display="default"
+                                   onChange={(event, selectedDate) => {
+                                       setShowDatePicker(false);
+                                       if (selectedDate) {
+                                           setTransactionDate(selectedDate);
+                                       }
+                                   }}
+                               />
+                           )}
+                       </View>
+                       {/* Note Input */}
                        <View style={styles.inputContainer}>
                            <Text style={styles.label}>Note (Optional)</Text>
                            <TextInput
@@ -164,7 +209,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                                multiline
                            />
                        </View>
-                        {/* Submit Button */}
+                       {/* Submit Button */}
                        <TouchableOpacity 
                            style={styles.submitButton}
                            onPress={handleSubmit}
@@ -177,7 +222,6 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
        </Modal>
    );
 }
-
 
 const styles = StyleSheet.create({
     container: {
