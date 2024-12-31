@@ -1,4 +1,4 @@
-import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text,StyleSheet,Dimensions,FlatList, TouchableOpacity, Platform, Modal, TextInput, ScrollView, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
@@ -28,12 +28,12 @@ export default function Home() {
     const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
     const [BudgetArray, setBudgetArray]=useState<Category[]>([]);
     const [BudgetTracking, setBudgetTracking]=useState<BudgetTracking[]>([]);
-    const [selectedBudget, setSelectedBudget] = useState('');
+    const [selectedBudget, setSelectedBudget] = useState<number>();
     const [budgetAmount, setBudgetAmount] = useState('');
     const { wallets, setWallets, transactions, setTransactions, categories, setCategories } = useAppContext();
 
 
-    const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number } }>({
+    const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number, category_id: number } }>({
  
     }); 
     const [loading, setLoading]= useState<boolean>(false);
@@ -160,13 +160,12 @@ export default function Home() {
             setWallets(walletData);
             setTransactions(transactionData);
             setCategories(categoriesData);      
-            setBudgetTracking(BudgetTrackingData)
-            console.log(BudgetTrackingData)
+            setBudgetTracking(BudgetTrackingData);
+ 
 
-            const filteredCategories = categories.filter(category => category.budgeted !== false);
-            setBudgetArray(filteredCategories)   
-            console.log(filteredCategories)   
-
+            const filteredCategories = categoriesData.filter(category => category.budgeted === 1);
+            setBudgetArray(filteredCategories);
+ 
         } catch (error) {
             console.error('Error opening database:', error);
         }
@@ -183,6 +182,64 @@ export default function Home() {
         const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
         return new Intl.DateTimeFormat('en-US', options).format(date);
     };
+
+    const calculateBudgets = async () => {
+        const dbPath = `${FileSystem.documentDirectory}sys.db`;
+        const db = await SQLite.openDatabaseAsync(dbPath);
+        const updatedBudgets: { [key: string]: { total: number; spent: number; category_id: number } } = {}; // Temporary object to hold updated budgets
+        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+
+        for (const budget of BudgetArray) { // Use for...of to handle async operations correctly
+            // Find the last matching tracker without modifying the original array
+            const lastMatchingTracker = BudgetTracking.slice().reverse().find(item => item.id === budget.ID); 
+            let totalSpent = 0; // Initialize total spent for the current budget
+
+            // Calculate total spent for the current budget
+            for (const transaction of transactions) {
+                const categoryId = transaction.category_id; // Get the category ID from the transaction
+                
+                // Check if the transaction category matches the current budget ID
+                if (categoryId === budget.ID) {
+                    totalSpent += transaction.amount; // Accumulate the spent amount
+                }
+            }
+
+            // Update the temporary object with the budget details
+            updatedBudgets[budget.name] = {
+                total: budget.budget_limit,
+                spent: totalSpent,
+                category_id: budget.ID
+            };
+ 
+           
+        
+            // Check if next_rest matches today's date
+            if (lastMatchingTracker) {
+                // Parse the next_rest date
+                const nextRestDate = new Date(lastMatchingTracker.next_rest);
+                
+                // Calculate the number of days until the next Monday
+                const daysUntilNextMonday = (8 - nextRestDate.getDay()) % 7; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                
+                // Add the days to get the next Monday
+                nextRestDate.setDate(nextRestDate.getDate() + daysUntilNextMonday);
+                
+                try {
+                    await db.runAsync(`
+                        INSERT INTO budget_Tracking (next_rest, amount_spent, budget_limit, created_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP);
+                    `, [nextRestDate.toISOString(), totalSpent, budget.budgetLimit]); // Use the updated next_rest date
+                } catch (error) {
+                    console.error('Error inserting into budget_Tracking:', error);
+                }
+            }
+        }
+
+        setBudgets(prevBudgets => ({
+            ...prevBudgets,
+            ...updatedBudgets, // Merge the updated budgets into the existing state
+        }));
+    };
     
  
     useEffect(()=>{
@@ -191,83 +248,31 @@ export default function Home() {
             setLoading(true)
             await createDatabase();
             await getData();
+            await calculateBudgets();
             setLoading(false)
         };
-        const calculateBudgets = async () => {
-            const dbPath = `${FileSystem.documentDirectory}sys.db`;
-            const db = await SQLite.openDatabaseAsync(dbPath);
-            const updatedBudgets: { [key: string]: { total: number; spent: number } } = {}; // Temporary object to hold updated budgets
-            const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
 
-            BudgetArray.forEach(async (budget) => {
-                // Find the last matching tracker without modifying the original array
-                const lastMatchingTracker = BudgetTracking.slice().reverse().find(item => item.id === budget.ID); 
-                let totalSpent = 0; // Initialize total spent for the current budget
-
-                transactions.forEach(transaction => {
-                    const categoryId = transaction.category_id; // Get the category ID from the transaction
-
-                    // Check if the transaction category matches the current budget ID
-                    if (categoryId === budget.ID) {
-                        totalSpent += transaction.amount; // Accumulate the spent amount
-                    }
-                });
-
-                // Update the temporary object with the budget details
-                updatedBudgets[budget.name] = {
-                    total: budget.budgetLimit,
-                    spent: totalSpent,
-                };
-
-                // Check if next_rest matches today's date
-                if (lastMatchingTracker) {
-                    // Parse the next_rest date
-                    const nextRestDate = new Date(lastMatchingTracker.next_rest);
-                    
-                    // Calculate the number of days until the next Monday
-                    const daysUntilNextMonday = (8 - nextRestDate.getDay()) % 7; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-                    
-                    // Add the days to get the next Monday
-                    nextRestDate.setDate(nextRestDate.getDate() + daysUntilNextMonday);
-                    
-                    try {
-                        await db.runAsync(`
-                            INSERT INTO budget_Tracking (next_rest, amount_spent, created_at)
-                            VALUES (?, ?, CURRENT_TIMESTAMP);
-                        `, [nextRestDate.toISOString(), totalSpent]); // Use the updated next_rest date
-                    } catch (error) {
-                        console.error('Error inserting into budget_Tracking:', error);
-                    }
-                }
-            });
-
-            // Update the state once with the accumulated budget data
-            setBudgets(prevBudgets => ({
-                ...prevBudgets,
-                ...updatedBudgets, // Merge the updated budgets into the existing state
-            }));
-        };
         initializeDatabase();
-        calculateBudgets();
       },[])
 
-
-const getBalance = () => {
-    if (transactions.length === 0) {
-        return 0;
-    } else {
-        const totalBalance = transactions.reduce((accumulator, transaction) => {
-            const amount = transaction.amount ? String(transaction.amount).replace(/,/g, '') : '0';
-            return accumulator + parseFloat(amount);
-        }, 0);
-
-        return totalBalance;
-    }
-};
+      useEffect(()=>{
+        calculateBudgets();
+      },[budgets])
 
 
+    const getBalance = () => {
+        if (transactions.length === 0) {
+            return 0;
+        } else {
+            const totalBalance = transactions.reduce((accumulator, transaction) => {
+                const amount = transaction.amount ? String(transaction.amount).replace(/,/g, '') : '0';
+                return accumulator + parseFloat(amount);
+            }, 0);
 
-
+            return totalBalance;
+        }
+    };
+ 
     const monthlyExpense = () => {
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth(); // 0-indexed (0 = January, 11 = December)
@@ -354,6 +359,50 @@ const getBalance = () => {
             </Text>
         </TouchableOpacity>
     );
+
+    const handleBudgetDelete = async ()=>{
+        
+    }
+
+    const handleBudgetUpdate = async () => {
+        console.log("Budget update clicked");
+ 
+        const dbPath = `${FileSystem.documentDirectory}sys.db`;
+        const db = await SQLite.openDatabaseAsync(dbPath);
+
+        try {
+            // Update the budget limit for the selected category
+            const result = await db.runAsync(`
+                UPDATE categories
+                SET budget_limit = ?
+                WHERE ID = ?;
+            `, [budgetAmount, selectedBudget]);
+ 
+            console.log("Budget updated successfully");
+
+            // Update the categories state
+            setCategories(prevCategories => {
+                return prevCategories.map(category => 
+                    category.ID === selectedBudget ? { ...category, budget_limit: budgetAmount } : category
+                );
+            });
+
+            // Update the budget array similarly
+            setBudgetArray(prevBudgetArray => {
+                return prevBudgetArray.map(budget => 
+                    budget.ID === selectedBudget ? { ...budget, budget_limit: budgetAmount } : budget
+                );
+            });
+
+            // Provide user feedback
+            Alert.alert("Success", "Budget updated successfully.");
+            setIsBudgetModalVisible(false);
+ 
+        } catch (error) {
+            console.error("Error updating budget:", error);
+            Alert.alert("Error", "Failed to update budget. Please try again.");
+        } 
+    };
   return (
     <ScrollView style={styles.container}>
          
@@ -467,15 +516,14 @@ const getBalance = () => {
                     const budget = budgets[key];
                     const remaining = budget.total - budget.spent;
                     const spentPercentage = (budget.spent / budget.total) * 100;
-
-                    return (
+                      return (
                         <View key={key} style={styles.budgetItem}>
                             <View style={styles.budgetHeader}>
                                 <Text style={styles.budgetName}>{key.charAt(0).toUpperCase() + key.slice(1)} Budget</Text>
                                 <TouchableOpacity 
                                     style={styles.editBudgetButton} 
                                     onPress={() => {
-                                        setSelectedBudget(key);
+                                        setSelectedBudget(budgets[key].category_id);
                                         setIsBudgetModalVisible(true);
                                     }}
                                 >
@@ -485,15 +533,15 @@ const getBalance = () => {
                             <View style={styles.budgetDetails}>
                                 <View style={styles.budgetDetail}>
                                     <Ionicons name="cash-outline" size={20} color={Colors.BrightRed} />
-                                    <Text style={styles.budgetAmount}>Total: ₦{budget.total.toLocaleString()}</Text>
+                                    <Text style={styles.budgetAmount}>Total: ₦{budget.total}</Text>
                                 </View>
                                 <View style={styles.budgetDetail}>
                                     <Ionicons name="arrow-up-outline" size={20} color={Colors.BrightGreen} />
-                                    <Text style={styles.budgetAmount}>Spent: ₦{budget.spent.toLocaleString()}</Text>
+                                    <Text style={styles.budgetAmount}>Spent: ₦{budget.spent}</Text>
                                 </View>
                                 <View style={styles.budgetDetail}>
                                     <Ionicons name="arrow-down-outline" size={20} color={Colors.BrightBlue} />
-                                    <Text style={styles.budgetAmount}>Remaining: ₦{remaining.toLocaleString()}</Text>
+                                    <Text style={styles.budgetAmount}>Remaining: ₦{remaining}</Text>
                                 </View>
                             </View>
                             {/* Progress Bar */}
@@ -516,7 +564,7 @@ const getBalance = () => {
                         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                             <View style={styles.modalContent}>
                                 <Text style={styles.modalTitle}>
-                                    {selectedBudget ? `Edit ${selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)} Budget` : 'Create New Budget'}
+                                    Edit  
                                 </Text>
                                 <TextInput
                                     style={styles.modalInput}
@@ -529,14 +577,11 @@ const getBalance = () => {
                                     <TouchableOpacity 
                                         style={styles.modalButton} 
                                         onPress={() => {
-                                            if (selectedBudget) {
-                                                handleBudgetUpdate('update'); // Update existing budget
-                                            } else {
-                                                handleBudgetUpdate('create'); // Create new budget
-                                            }
+                                            handleBudgetUpdate('update'); // Update existing budget
+
                                         }}
                                     >
-                                        <Text style={styles.modalButtonText}>{selectedBudget ? 'Save Changes' : 'Save Budget'}</Text>
+                                        <Text style={styles.modalButtonText}>Save Changes</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity 
                                         style={styles.modalButton} 

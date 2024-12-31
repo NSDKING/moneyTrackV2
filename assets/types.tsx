@@ -31,7 +31,7 @@ type Category = {
     name: string; // Name of the category
     description?: string | null; // Optional description of the category
     budgeted?: boolean; // Indicates if the category is budgeted
-    budgetLimit?: number | null; // Optional budget limit for the category
+    budget_limit?: number | null; // Optional budget limit for the category
     startDate: string; // Date indicating the start of the category's budget
     endDate: string; // Date indicating the end of the category's budget
     icon: string; // Icon representing the category
