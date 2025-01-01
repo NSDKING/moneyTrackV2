@@ -4,9 +4,17 @@ import Colors from '@/constants/Colors';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import { AddBudgetModalProps } from '@/assets/types';
+import { useAppContext } from '@/context/AppContext';
 
 const AddBudgetModal: React.FC<AddBudgetModalProps> = ({ visible, onClose, selectedCategory }) => {
     const [budgetAmount, setBudgetAmount] = useState<number>(0);
+    const { setCategories, setBudgetArray, categories } = useAppContext();
+
+    const getCategory = (id: string) => {
+        const category = categories.find(cat => cat.ID === Number(id));
+
+        return category || null;
+    };
 
     const handleBudgetAmountChange = (value: string) => {
         const numericValue = parseFloat(value);
@@ -38,6 +46,44 @@ const AddBudgetModal: React.FC<AddBudgetModalProps> = ({ visible, onClose, selec
                 WHERE ID = ?;
             `, [budgetLimit, categoryId]);
 
+            const ActualCategory = getCategory(selectedCategory);
+
+            const newBudget = {
+                ID:ActualCategory?.ID,
+                budget_limit:budgetLimit,
+                budgeted:1,
+                color:ActualCategory?.color,
+                description:ActualCategory?.description,
+                end_date:ActualCategory?.endDate,
+                icon:ActualCategory?.icon,
+                name:ActualCategory?.name,
+                start_date:ActualCategory?.type,
+                type:ActualCategory?.type,
+            }
+
+            console.log(newBudget);
+            setBudgetArray(prevBudgetArray => [...prevBudgetArray, newBudget]);
+
+            setCategories(prevCategories => {
+                return prevCategories.map(category => {
+                    const isMatchingCategory = category.ID === Number(selectedCategory);
+                    
+                    // Only update if the category matches and the values are different
+                    if (isMatchingCategory) {
+                        const updatedCategory = {
+                            ...category,
+                            budget_limit: budgetLimit, 
+                            budgeted: 1  
+                        };
+
+                        // Optionally, check if the values are actually changing
+                        if (category.budget_limit !== budgetLimit || category.budgeted !== true) {
+                            return updatedCategory; // Return updated category
+                        }
+                    }
+                    return category; // Return the original category if no changes
+                });
+            });
             console.log('Budget tracking entry inserted successfully');
         } catch (error) {
             console.error('Error inserting budget tracking entry:', error);

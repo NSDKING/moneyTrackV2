@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     Modal, 
     View, 
@@ -9,122 +9,117 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
-import { AddTransactionModalProps, Transaction } from '@/assets/types';
+import { EditTransactionModalProps, Transaction } from '@/assets/types';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAppContext } from '@/context/AppContext';
 
-export default function AddTransactionModal({ visible, onClose, setTransactions, transactions, categories }: AddTransactionModalProps) {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, onClose, transaction }) => {
     const [title, setTitle] = useState('');
-    const [amount, setAmount] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('');
+    const [amount, setAmount] = useState<number | string>(''); // Allow empty string for initial state
+    const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
     const [isExpense, setIsExpense] = useState(true);
     const [transactionDate, setTransactionDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const { categories, setTransactions } = useAppContext();
 
     const router = useRouter();
 
-    const insertTransaction = async (walletId: number, categoryId: number | null, type: 'deposit' | 'withdrawal' | 'transfer', amount: number, description: string, transferToWalletId: number | null, transactionDate: string) => {
+    useEffect(() => {
+        if (transaction) {
+            setTitle(transaction.description);
+            setAmount(transaction.amount.toString());
+            setSelectedCategory(transaction.category_id);
+            setIsExpense(transaction.type === 'withdrawal');
+            setTransactionDate(new Date(transaction.transaction_date));
+        }
+    }, [transaction]);
+
+    const updateTransaction = async () => {
+        if (!transaction) return;
+
         try {
             const dbPath = `${FileSystem.documentDirectory}sys.db`;
             const db = await SQLite.openDatabaseAsync(dbPath);
 
             await db.runAsync(`
-               INSERT INTO transactions (wallet_id, category_id, type, amount, description, transaction_date, transfer_to_wallet_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?);
-           `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
+                UPDATE transactions
+                SET category_id = ?, 
+                    type = ?, 
+                    amount = ?, 
+                    description = ?, 
+                    transaction_date = ?, 
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE ID = ?;
+            `, [selectedCategory, getType(), parseFloat(amount as string), title, transactionDate.toISOString(), transaction.ID]);
 
-            const transactionData = await db.getAllAsync('SELECT * FROM transactions');
-            console.log(transactionData);
+            // Update the local state to reflect the changes
+            setTransactions(prevTransactions => 
+                prevTransactions.map(t => 
+                    t.ID === transaction.ID 
+                        ? { 
+                            ...t, 
+                            category_id: selectedCategory !== null ? selectedCategory : 0,
+                            type: getType(), 
+                            amount: parseFloat(amount as string), 
+                            description: title, 
+                            transaction_date: transactionDate.toISOString() 
+                          } 
+                        : t
+                )
+            );
+
+            Alert.alert("Success", "Transaction updated successfully.");
+            onClose();
         } catch (error) {
-            console.error('Error inserting transaction:', error);
+            console.error('Error updating transaction:', error);
+            Alert.alert("Error", "Failed to update transaction. Please try again.");
         }
-    }
+    };
 
     const getType = () => {
-       return isExpense ? 'withdrawal' : 'deposit';
+        return isExpense ? 'withdrawal' : 'deposit';
     };
 
     const handleSubmit = () => {
-        // Validate inputs
         if (!title || !amount || !selectedCategory) {
-            console.error("Please fill in all fields.");
+            Alert.alert("Validation Error", "Please fill in all fields.");
             return;
         }
+        updateTransaction();
+    };
 
-        // Create a new transaction object
-        const newTransaction: Transaction = {
-            ID: Number((transactions.length + 1)), // Generate a new ID (or use a better method)
-            amount: Number(isExpense ? `-${amount}` : amount), // Convert amount to a number
-            category_id: Number(selectedCategory),
-            description: title,
-            type: getType(), // Assuming getType() returns the correct type
-            wallet_id: 1,
-            transaction_date: transactionDate.toISOString(), // Add the date field
-        };
-
-        try {
-            // Insert the transaction into the database
-            insertTransaction(1, Number(selectedCategory), getType(), Number(isExpense ? `-${amount}` : amount), title, null, transactionDate.toISOString());
-
-            // Update the transactions state
-            setTransactions([...transactions, newTransaction]);
-
-            console.log("Transaction added successfully:", newTransaction);
-        } catch (error) {
-            console.error("Error adding transaction:", error);
-        }
-
-        // Reset form and close modal
-        resetForm();
+    const handleOpenSettings = () => {
         onClose();
+        router.push({
+            pathname: '/ManageCategories',
+            params: { categories: JSON.stringify(categories) },
+        });
     };
 
-    const resetForm = () => {
-        setTitle('');
-        setAmount('');
-        setSelectedCategory('');
-        setIsExpense(true);
-        setTransactionDate(new Date());
-    };
-
-    // Function to filter categories based on isExpense
+        // Function to filter categories based on isExpense
     const filteredCategories = categories.filter(category => 
         (isExpense && category.type === 'expense') || 
         (!isExpense && category.type === 'income')
     );
-
- 
-
-    const handleOpenSettings = () => {
-        if (categories) {
-            onClose();
-            router.push({
-                pathname: '/ManageCategories',
-                params: { categories: JSON.stringify(categories) },
-            });
-        } else {
-            console.warn('Categories are not defined');
-        }
-    };
+    
+     
 
     return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent={true}
-        >
+        <Modal visible={visible} animationType="slide" transparent={true}>
             <KeyboardAvoidingView 
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={styles.container}
             >
                 <View style={styles.modalContent}>
                     <View style={styles.header}>
-                        <Text style={styles.headerTitle}>Add Transaction</Text>
+                        <Text style={styles.headerTitle}>Edit Transaction</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <Ionicons name="close" size={24} color={Colors.CharcoalGray} />
                         </TouchableOpacity>
@@ -136,22 +131,14 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                                 style={[styles.typeButton, isExpense && styles.typeButtonActive]}
                                 onPress={() => setIsExpense(true)}
                             >
-                                <Ionicons 
-                                    name="remove-circle-outline" 
-                                    size={24} 
-                                    color={isExpense ? 'white' : Colors.CharcoalGray} 
-                                />
+                                <Ionicons name="remove-circle-outline" size={24} color={isExpense ? 'white' : Colors.CharcoalGray} />
                                 <Text style={[styles.typeButtonText, isExpense && styles.typeButtonTextActive]}>Expense</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                                 style={[styles.typeButton, !isExpense && styles.typeButtonActive]}
                                 onPress={() => setIsExpense(false)}
                             >
-                                <Ionicons 
-                                    name="add-circle-outline" 
-                                    size={24} 
-                                    color={!isExpense ? 'white' : Colors.CharcoalGray} 
-                                />
+                                <Ionicons name="add-circle-outline" size={24} color={!isExpense ? 'white' : Colors.CharcoalGray} />
                                 <Text style={[styles.typeButtonText, !isExpense && styles.typeButtonTextActive]}>Income</Text>
                             </TouchableOpacity>
                         </View>
@@ -160,8 +147,8 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                             <Text style={styles.label}>Amount</Text>
                             <TextInput
                                 style={styles.input}
-                                value={amount}
-                                onChangeText={setAmount}
+                                value={amount.toString()}
+                                onChangeText={text => setAmount(text)}
                                 keyboardType="numeric"
                                 placeholder="0.00"
                             />
@@ -178,24 +165,24 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                         </View>
                         {/* Date Input */}
                         <View style={styles.inputContainer}>
-                           <Text style={styles.label}>Transaction Date</Text>
-                           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-                               <Text>{transactionDate.toLocaleDateString()}</Text>
-                           </TouchableOpacity>
-                                {showDatePicker && (
-                                    <DateTimePicker
-                                        value={transactionDate}
-                                        mode="date"
-                                        display="default"
-                                        onChange={(event, selectedDate) => {
-                                            setShowDatePicker(false);
-                                            if (selectedDate) {
-                                                setTransactionDate(selectedDate);
-                                            }
-                                        }}
-                                    />
-                                )}
-                       </View>
+                            <Text style={styles.label}>Transaction Date</Text>
+                            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                                <Text>{transactionDate.toLocaleDateString()}</Text>
+                            </TouchableOpacity>
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={transactionDate}
+                                    mode="date"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowDatePicker(false);
+                                        if (selectedDate) {
+                                            setTransactionDate(selectedDate);
+                                        }
+                                    }}
+                                />
+                            )}
+                        </View>
                         {/* Category Selection */}
                         <Text style={styles.label}>Category</Text>
                         <ScrollView 
@@ -206,15 +193,15 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                             {filteredCategories.map((category) => (
                                 <TouchableOpacity
                                     key={category.ID}
-                                    style={[styles.categoryButton, Number(selectedCategory) === category.ID && { backgroundColor: category.color }]}
-                                    onPress={() => setSelectedCategory(category.ID.toString())}
+                                    style={[styles.categoryButton, selectedCategory === category.ID && { backgroundColor: category.color }]}
+                                    onPress={() => setSelectedCategory(category.ID)}
                                 >
                                     <Ionicons 
                                         name={category.icon} 
                                         size={24} 
-                                        color={Number(selectedCategory) === category.ID ? 'white' : Colors.lightRed} 
+                                        color={selectedCategory === category.ID ? 'white' : Colors.lightRed} 
                                     />
-                                    <Text style={[styles.categoryText, Number(selectedCategory) === category.ID && { color: 'white' }]}>{category.name}</Text>
+                                    <Text style={[styles.categoryText, selectedCategory === category.ID && { color: 'white' }]}>{category.name}</Text>
                                 </TouchableOpacity>
                             ))}
                             {/* Plus Button to add new category */}
@@ -228,7 +215,7 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
                             style={styles.submitButton}
                             onPress={handleSubmit}
                         >
-                            <Text style={styles.submitButtonText}>Add Transaction</Text>
+                            <Text style={styles.submitButtonText}>Update Transaction</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
@@ -283,8 +270,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 8,
         gap: 8,
-
-      },
+    },
     typeButtonActive: {
         backgroundColor: Colors.BrightRed,
         shadowColor: '#000',
@@ -292,13 +278,13 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-     },
+    },
     typeButtonText: {
         color: '#666',
         fontWeight: '500',
     },
     typeButtonTextActive: {
-        color:'white',
+        color: 'white',
     },
     inputContainer: {
         marginBottom: 20,
@@ -307,7 +293,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         color: Colors.CharcoalGray,
-        marginBottom: 20,
+        marginBottom: 5,
     },
     input: {
         backgroundColor: '#f5f5f5',
@@ -332,45 +318,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    walletsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 20,
-    },
-    walletButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 12,
-        backgroundColor: '#f5f5f5',
-    },
-    walletButtonActive: {
-        backgroundColor: Colors.BrightRed,
-    },
-    walletText: {
-        color: Colors.CharcoalGray,
-        fontWeight: '500',
-    },
-    walletTextActive: {
-        color: 'white',
-    },
-    submitButton: {
-        backgroundColor: Colors.BrightRed,
-        padding: 18,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 50,
-        marginBottom: 30,
-    },
-    submitButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    noteInput: {
-        height: 100,
-        textAlignVertical: 'top',
-    },
     settingsButton: {
         padding: 15,
         borderRadius: 12,
@@ -383,18 +330,20 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 14,
         fontWeight: '500',
+        color: 'blue',
     },
-    addCategoryButton: {
-        padding: 15,
+    submitButton: {
+        backgroundColor: Colors.BrightRed,
+        padding: 18,
         borderRadius: 12,
-        backgroundColor: '#f5f5f5',
         alignItems: 'center',
-        marginRight: 10,
+        marginTop: 20,
     },
-    addCategoryText: {
-        marginTop: 5,
-        fontSize: 14,
-        fontWeight: '500',
-        color: 'green',
+    submitButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });
+
+export default EditTransactionModal;

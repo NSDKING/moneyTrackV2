@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system';
 import categoriesList from '@/constants/categories';
 import { useAppContext } from '@/context/AppContext';
 import { Wallet, Transaction, Category, BudgetTracking } from '@/assets/types';
+import EditTransactionModal from '../modals/EditTransactionModal';
 
 
 const { width } = Dimensions.get('window');
@@ -26,12 +27,13 @@ export default function Home() {
     const [isAddTransactions, setIsAddTransactions] = useState(false);
     const [isTransferModal, setIsTransferModal] = useState(false);
     const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
-    const [BudgetArray, setBudgetArray]=useState<Category[]>([]);
     const [BudgetTracking, setBudgetTracking]=useState<BudgetTracking[]>([]);
     const [selectedBudget, setSelectedBudget] = useState<number>();
     const [budgetAmount, setBudgetAmount] = useState('');
-    const { wallets, setWallets, transactions, setTransactions, categories, setCategories } = useAppContext();
-
+    const { wallets, setWallets, transactions, setTransactions, categories, setCategories, BudgetArray, setBudgetArray } = useAppContext();
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isEditTransactionModalVisible, setIsEditTransactionModalVisible] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
     const [budgets, setBudgets] = useState<{ [key in BudgetKey]: { total: number; spent: number, category_id: number } }>({
  
@@ -257,6 +259,7 @@ export default function Home() {
 
       useEffect(()=>{
         calculateBudgets();
+  
       },[budgets])
 
 
@@ -334,7 +337,7 @@ export default function Home() {
     const filteredTransactions = transactions.filter(transaction => transaction.type !== 'transfer'); // Filter out transfers
 
     const renderTransactionCard = ({ item }: { item: Transaction }) => (
-        <TouchableOpacity style={styles.transactionItem}>
+        <TouchableOpacity style={styles.transactionItem} onPress={() => openEditTransactionModal(item)}>
             <View style={styles.transactionLeft}>
                 <View style={[
                     styles.transactionIcon,
@@ -360,9 +363,49 @@ export default function Home() {
         </TouchableOpacity>
     );
 
-    const handleBudgetDelete = async ()=>{
-        
-    }
+    const handleBudgetDelete = async () => {
+        const dbPath = `${FileSystem.documentDirectory}sys.db`;
+        const db = await SQLite.openDatabaseAsync(dbPath);
+
+        try {
+            // Update the budgeted status and limit in the database
+            const result = await db.runAsync(`
+                UPDATE categories
+                SET budgeted = FALSE,
+                    budget_limit = NULL
+                WHERE ID = ?;
+            `, [selectedBudget]);
+
+            // Check if any rows were affected
+            console.log("Budget deleted successfully");
+
+            // Update the local state to reflect the deletion in categories
+            setCategories(prevCategories => 
+                prevCategories.map(category => 
+                    category.ID === selectedBudget ? { ...category, budgeted: false, budget_limit: null } : category
+                )
+            );
+
+            // Remove the selected budget from the BudgetArray
+            setBudgetArray(prevBudgetArray => 
+                prevBudgetArray.filter(budget => budget.ID !== selectedBudget)
+            );
+
+            // Remove the selected budget from the budgets state
+            setBudgets(prevBudgets => {
+                const updatedEntries = Object.entries(prevBudgets).filter(
+                    ([key, value]) => value.category_id !== selectedBudget
+                );
+                return Object.fromEntries(updatedEntries) as typeof prevBudgets;
+            });
+            setIsBudgetModalVisible(false);
+            Alert.alert("Success", "Budget deleted successfully.");
+     
+        } catch (error) {
+            console.error("Error deleting budget:", error);
+            Alert.alert("Error", "Failed to delete budget. Please try again.");
+        }
+    };
 
     const handleBudgetUpdate = async () => {
         console.log("Budget update clicked");
@@ -371,6 +414,21 @@ export default function Home() {
         const db = await SQLite.openDatabaseAsync(dbPath);
 
         try {
+
+            // Update the categories state
+            setCategories(prevCategories => {
+                return prevCategories.map(category => 
+                    category.ID === selectedBudget ? { ...category, budget_limit: budgetAmount } : category
+                );
+            });
+
+ 
+ 
+            setBudgetArray(prevBudgetArray => {
+                return prevBudgetArray.map(budget => 
+                    budget.ID === selectedBudget ? { ...budget, budget_limit: budgetAmount } : budget
+                );
+            });
             // Update the budget limit for the selected category
             const result = await db.runAsync(`
                 UPDATE categories
@@ -380,19 +438,7 @@ export default function Home() {
  
             console.log("Budget updated successfully");
 
-            // Update the categories state
-            setCategories(prevCategories => {
-                return prevCategories.map(category => 
-                    category.ID === selectedBudget ? { ...category, budget_limit: budgetAmount } : category
-                );
-            });
-
-            // Update the budget array similarly
-            setBudgetArray(prevBudgetArray => {
-                return prevBudgetArray.map(budget => 
-                    budget.ID === selectedBudget ? { ...budget, budget_limit: budgetAmount } : budget
-                );
-            });
+ 
 
             // Provide user feedback
             Alert.alert("Success", "Budget updated successfully.");
@@ -403,61 +449,68 @@ export default function Home() {
             Alert.alert("Error", "Failed to update budget. Please try again.");
         } 
     };
-  return (
-    <ScrollView style={styles.container}>
+
+    // Function to open the edit modal
+    const openEditTransactionModal = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsEditTransactionModalVisible(true);
+    };
+
+    return (
+        <ScrollView style={styles.container}>
          
-        <View style={{padding:10}}>
-            <View style={styles.HeaderLeft}>Y
-                <Text style={{fontSize:20, fontWeight:'500', color:Colors.CharcoalGray }}>Total Balance</Text>
-                {loading ? (
-                    <Text style={{fontSize:28, fontWeight: '700'}}>Loading...</Text>
-                ) : (
-                    <Text style={{fontSize:28, fontWeight: '700'}}>Fcfa {getBalance()}</Text>
-                )}
-                <View style={styles.smallBoxContainer}>
-                    <View style={styles.smallBox}>
-                        {loading ? (
-                            <Text style={styles.smallBoxText}>Loading...</Text>
-                        ) : (
-                            <Text style={styles.smallBoxText}>Fcfa {monthlyExpense()}</Text>
-                        )}
+            <View style={{padding:10}}>
+                <View style={styles.HeaderLeft}>Y
+                    <Text style={{fontSize:20, fontWeight:'500', color:Colors.CharcoalGray }}>Total Balance</Text>
+                    {loading ? (
+                        <Text style={{fontSize:28, fontWeight: '700'}}>Loading...</Text>
+                    ) : (
+                        <Text style={{fontSize:28, fontWeight: '700'}}>Fcfa {getBalance()}</Text>
+                    )}
+                    <View style={styles.smallBoxContainer}>
+                        <View style={styles.smallBox}>
+                            {loading ? (
+                                <Text style={styles.smallBoxText}>Loading...</Text>
+                            ) : (
+                                <Text style={styles.smallBoxText}>Fcfa {monthlyExpense()}</Text>
+                            )}
+                        </View>
+                        <Text style={styles.smallBoxText}>monthly expense &gt;</Text>            
                     </View>
-                    <Text style={styles.smallBoxText}>monthly expense &gt;</Text>            
                 </View>
-            </View>
-            {/* Replace the single wallet box with FlatList */}
-            <FlatList
-                data={wallets}
-                renderItem={renderWalletCard}
-                keyExtractor={(item) => item.ID.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={CARD_WIDTH + SPACING}
-                decelerationRate="fast"
-                contentContainerStyle={styles.carouselContainer}
-            />
+                {/* Replace the single wallet box with FlatList */}
+                <FlatList
+                    data={wallets}
+                    renderItem={renderWalletCard}
+                    keyExtractor={(item) => item.ID.toString()}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    snapToInterval={CARD_WIDTH + SPACING}
+                    decelerationRate="fast"
+                    contentContainerStyle={styles.carouselContainer}
+                />
 
-            <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity 
-                    style={styles.actionButton} 
-                    onPress={() => setIsAddTransactions(true)}
-                >
-                    <View style={styles.actionButtonContent}>
-                        <Ionicons name="add-circle-outline" size={24} color={Colors.CharcoalGray} />
-                        <Text style={styles.actionButtonText}>Add Transaction</Text>
-                    </View>
-                </TouchableOpacity>
+                <View style={styles.actionButtonsContainer}>
+                    <TouchableOpacity 
+                        style={styles.actionButton} 
+                        onPress={() => setIsAddTransactions(true)}
+                    >
+                        <View style={styles.actionButtonContent}>
+                            <Ionicons name="add-circle-outline" size={24} color={Colors.CharcoalGray} />
+                            <Text style={styles.actionButtonText}>Add Transaction</Text>
+                        </View>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                    style={styles.actionButton} 
-                    onPress={ () =>{ setIsTransferModal(true) }}      
-                >
-                    <View style={styles.actionButtonContent}>
-                        <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
-                        <Text style={styles.actionButtonText}>Transfer</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
+                    <TouchableOpacity 
+                        style={styles.actionButton} 
+                        onPress={ () =>{ setIsTransferModal(true) }}      
+                    >
+                        <View style={styles.actionButtonContent}>
+                            <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
+                            <Text style={styles.actionButtonText}>Transfer</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
 
             <View style={styles.transactionsContainer}>
                 <View style={styles.transactionsHeader}>
@@ -498,116 +551,124 @@ export default function Home() {
                             setCategories={setCategories}
                         />
 
-                        <AddTransferModal
-                            visible={isTransferModal}
-                            onClose={() => setIsTransferModal(false)}
-                            wallets={walletLists}
-                        />
-        
-                    </>
-                    
-                )
-            }
+                            <AddTransferModal
+                                visible={isTransferModal}
+                                onClose={() => setIsTransferModal(false)}
+                                wallets={walletLists}
+                            />
+                
+                        </>
+                        
+                    )
+                }
 
-            {/* Budget Section */}
-            <View style={styles.transactionsContainer}>
-                <Text style={styles.sectionTitle}>Budgets</Text>
-                {Object.keys(budgets).map((key) => {
-                    const budget = budgets[key];
-                    const remaining = budget.total - budget.spent;
-                    const spentPercentage = (budget.spent / budget.total) * 100;
-                      return (
-                        <View key={key} style={styles.budgetItem}>
-                            <View style={styles.budgetHeader}>
-                                <Text style={styles.budgetName}>{key.charAt(0).toUpperCase() + key.slice(1)} Budget</Text>
-                                <TouchableOpacity 
-                                    style={styles.editBudgetButton} 
-                                    onPress={() => {
-                                        setSelectedBudget(budgets[key].category_id);
-                                        setIsBudgetModalVisible(true);
-                                    }}
-                                >
-                                    <Text style={styles.editBudgetButtonText}>Edit</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <View style={styles.budgetDetails}>
-                                <View style={styles.budgetDetail}>
-                                    <Ionicons name="cash-outline" size={20} color={Colors.BrightRed} />
-                                    <Text style={styles.budgetAmount}>Total: ₦{budget.total}</Text>
+                {/* Budget Section */}
+                <View style={styles.transactionsContainer}>
+                    <Text style={styles.sectionTitle}>Budgets</Text>
+                    {Object.keys(budgets).map((key) => {
+                        const budget = budgets[key];
+                        const remaining = budget.total + budget.spent;
+                        const spentPercentage = (-budget.spent / budget.total) * 100;
+                          return (
+                            <View key={key} style={styles.budgetItem}>
+                                <View style={styles.budgetHeader}>
+                                    <Text style={styles.budgetName}>{key.charAt(0).toUpperCase() + key.slice(1)} Budget</Text>
+                                    <TouchableOpacity 
+                                        style={styles.editBudgetButton} 
+                                        onPress={() => {
+                                            setSelectedBudget(budgets[key].category_id);
+                                            setIsBudgetModalVisible(true);
+                                        }}
+                                    >
+                                        <Text style={styles.editBudgetButtonText}>Edit</Text>
+                                    </TouchableOpacity>
                                 </View>
-                                <View style={styles.budgetDetail}>
-                                    <Ionicons name="arrow-up-outline" size={20} color={Colors.BrightGreen} />
-                                    <Text style={styles.budgetAmount}>Spent: ₦{budget.spent}</Text>
+                                <View style={styles.budgetDetails}>
+                                    <View style={styles.budgetDetail}>
+                                        <Ionicons name="cash-outline" size={20} color={Colors.BrightRed} />
+                                        <Text style={styles.budgetAmount}>Total: ₦{budget.total}</Text>
+                                    </View>
+                                    <View style={styles.budgetDetail}>
+                                        <Ionicons name="arrow-up-outline" size={20} color={Colors.BrightGreen} />
+                                        <Text style={styles.budgetAmount}>Spent: ₦{budget.spent}</Text>
+                                    </View>
+                                    <View style={styles.budgetDetail}>
+                                        <Ionicons name="arrow-down-outline" size={20} color={Colors.BrightBlue} />
+                                        <Text style={styles.budgetAmount}>Remaining: ₦{remaining}</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.budgetDetail}>
-                                    <Ionicons name="arrow-down-outline" size={20} color={Colors.BrightBlue} />
-                                    <Text style={styles.budgetAmount}>Remaining: ₦{remaining}</Text>
+                                {/* Progress Bar */}
+                                <View style={styles.progressContainer}>
+                                    <View style={[styles.progressBar, { width: `${spentPercentage}%` }]} />
                                 </View>
                             </View>
-                            {/* Progress Bar */}
-                            <View style={styles.progressContainer}>
-                                <View style={[styles.progressBar, { width: `${spentPercentage}%` }]} />
-                            </View>
+                        );
+                    })}
+                </View>
+
+                {/* Budget Edit Modal */}
+                <Modal
+                    visible={isBudgetModalVisible}
+                    animationType="slide"
+                    transparent={true}
+                >
+                    <TouchableWithoutFeedback onPress={() => setIsBudgetModalVisible(false)}>
+                        <View style={styles.modalContainer}>
+                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                                <View style={styles.modalContent}>
+                                    <Text style={styles.modalTitle}>
+                                        Edit  
+                                    </Text>
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        value={budgetAmount}
+                                        onChangeText={setBudgetAmount}
+                                        keyboardType="numeric"
+                                        placeholder="Enter amount"
+                                    />
+                                    <View style={styles.modalActions}>
+                                        <TouchableOpacity 
+                                            style={styles.modalButton} 
+                                            onPress={() => {
+                                                handleBudgetUpdate('update'); // Update existing budget
+
+                                            }}
+                                        >
+                                            <Text style={styles.modalButtonText}>Save Changes</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={styles.modalButton} 
+                                            onPress={() => {
+                                                if (selectedBudget) {
+                                                    handleBudgetDelete(selectedBudget as BudgetKey); // Delete budget
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.modalButtonText}>Delete</Text>
+                                        </TouchableOpacity>
+        
+                                    </View>
+                                </View>
+                            </TouchableWithoutFeedback>
                         </View>
-                    );
-                })}
+                    </TouchableWithoutFeedback>
+                </Modal>
+
+                <EditTransactionModal
+                    visible={isEditTransactionModalVisible}
+                    onClose={() => {
+                        setIsEditTransactionModalVisible(false);
+                        setSelectedTransaction(null);
+                    }}
+                    transaction={selectedTransaction}
+                />
+
             </View>
 
-            {/* Budget Edit Modal */}
-            <Modal
-                visible={isBudgetModalVisible}
-                animationType="slide"
-                transparent={true}
-            >
-                <TouchableWithoutFeedback onPress={() => setIsBudgetModalVisible(false)}>
-                    <View style={styles.modalContainer}>
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            <View style={styles.modalContent}>
-                                <Text style={styles.modalTitle}>
-                                    Edit  
-                                </Text>
-                                <TextInput
-                                    style={styles.modalInput}
-                                    value={budgetAmount}
-                                    onChangeText={setBudgetAmount}
-                                    keyboardType="numeric"
-                                    placeholder="Enter amount"
-                                />
-                                <View style={styles.modalActions}>
-                                    <TouchableOpacity 
-                                        style={styles.modalButton} 
-                                        onPress={() => {
-                                            handleBudgetUpdate('update'); // Update existing budget
-
-                                        }}
-                                    >
-                                        <Text style={styles.modalButtonText}>Save Changes</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity 
-                                        style={styles.modalButton} 
-                                        onPress={() => {
-                                            if (selectedBudget) {
-                                                handleBudgetDelete(selectedBudget as BudgetKey); // Delete budget
-                                            }
-                                        }}
-                                    >
-                                        <Text style={styles.modalButtonText}>Delete</Text>
-                                    </TouchableOpacity>
-    
-                                </View>
-                            </View>
-                        </TouchableWithoutFeedback>
-                    </View>
-                </TouchableWithoutFeedback>
-            </Modal>
-
-  
-        </View>
-
-    </ScrollView>
+        </ScrollView>
 
 
-  );
+    );
 }
 
 const styles = StyleSheet.create({

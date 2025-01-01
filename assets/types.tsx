@@ -72,6 +72,8 @@ interface AppContextType {
     setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
     categories: Category[];
     setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
+    BudgetArray: Category[];
+    setBudgetArray: React.Dispatch<React.SetStateAction<Category[]>>;
 }
 
 interface AddBudgetModalProps {
@@ -91,5 +93,13 @@ interface BudgetTracking {
     updated_at: string; // TIMESTAMP, can be represented as a string
 }
 
-export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking };
+
+interface EditTransactionModalProps {
+    visible: boolean;
+    onClose: () => void;
+    transaction: Transaction ; 
+}
+
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking, EditTransactionModalProps };
 

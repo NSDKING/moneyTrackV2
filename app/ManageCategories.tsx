@@ -38,7 +38,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ categoryType, setCa
 };
 
 const ManageCategories = () => {    
-    const { categories, setCategories } = useAppContext();
+    const { categories, setCategories, BudgetArray, setBudgetArray } = useAppContext();
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentCategory, setCurrentCategory] = useState<any>(null);

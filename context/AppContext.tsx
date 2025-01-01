@@ -9,10 +9,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [wallets, setWallets] = useState<Wallet[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [BudgetArray, setBudgetArray]=useState<Category[]>([]);
 
 
     return (
-        <AppContext.Provider value={{ wallets, setWallets, transactions, setTransactions, categories, setCategories }}>
+        <AppContext.Provider value={{ wallets, setWallets, transactions, setTransactions, categories, setCategories, BudgetArray, setBudgetArray }}>
             {children}
         </AppContext.Provider>
     );
