@@ -158,9 +158,9 @@ export default function Home() {
             const transactionData: Transaction[] = await db.getAllAsync('SELECT * FROM transactions');
             const categoriesData: Category[] = await db.getAllAsync('SELECT * FROM categories');
             const BudgetTrackingData: BudgetTracking[] = await db.getAllAsync('SELECT * FROM budget_Tracking');
-
+            const NonDeletedTransactions = transactionData.filter(transaction => transaction.is_deleted === 0);
             setWallets(walletData);
-            setTransactions(transactionData);
+            setTransactions(NonDeletedTransactions);
             setCategories(categoriesData);      
             setBudgetTracking(BudgetTrackingData);
  
@@ -267,7 +267,9 @@ export default function Home() {
         if (transactions.length === 0) {
             return 0;
         } else {
-            const totalBalance = transactions.reduce((accumulator, transaction) => {
+            const justTransaction = transactions.filter(transaction => transaction.type !== 'transfer'); 
+
+            const totalBalance = justTransaction.reduce((accumulator, transaction) => {
                 const amount = transaction.amount ? String(transaction.amount).replace(/,/g, '') : '0';
                 return accumulator + parseFloat(amount);
             }, 0);

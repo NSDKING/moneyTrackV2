@@ -39,7 +39,6 @@ export default function AddTransactionModal({ visible, onClose, setTransactions,
            `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
 
             const transactionData = await db.getAllAsync('SELECT * FROM transactions');
-            console.log(transactionData);
         } catch (error) {
             console.error('Error inserting transaction:', error);
         }

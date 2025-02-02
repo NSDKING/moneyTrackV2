@@ -38,7 +38,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ categoryType, setCa
 };
 
 const ManageCategories = () => {    
-    const { categories, setCategories, BudgetArray, setBudgetArray } = useAppContext();
+    const { categories, setCategories } = useAppContext();
     const [modalVisible, setModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentCategory, setCurrentCategory] = useState<any>(null);
@@ -163,13 +163,9 @@ const ManageCategories = () => {
                 WHERE id = ?;
             `, [id]);
 
-            // Update local state to remove the deleted category
-            console.log("before")
-            console.log(categories)
-            console.log("after")
+ 
             setCategories(categories.filter(cat => cat.ID !== id));
             Alert.alert("Success", "Category deleted successfully.");
-            console.log(categories)
         } catch (error) {
             console.error('Error deleting category:', error.message);
             Alert.alert("Error", "There was an issue deleting the category. Please try again.");

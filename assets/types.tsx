@@ -17,7 +17,7 @@ type Transaction = {
     description?: string; // Optional description of the transaction
     transaction_date: string; // Timestamp for when the transaction occurred
     transfer_to_wallet_id?: number | null; // Foreign key referencing another wallet for transfers (optional)
-    deleted?: boolean; // Indicates if the Transaction is deleted
+    is_deleted?: boolean; // Indicates if the Transaction is deleted
 
 };
 
@@ -100,6 +100,12 @@ interface EditTransactionModalProps {
     transaction: Transaction ; 
 }
 
+interface RenderWalletCardProps {
+    item: Wallet;
+    onPress?: () => void;
+}
 
-export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking, EditTransactionModalProps };
+
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking, EditTransactionModalProps, RenderWalletCardProps };
 

@@ -61,7 +61,6 @@ const AddBudgetModal: React.FC<AddBudgetModalProps> = ({ visible, onClose, selec
                 type:ActualCategory?.type,
             }
 
-            console.log(newBudget);
             setBudgetArray(prevBudgetArray => [...prevBudgetArray, newBudget]);
 
             setCategories(prevCategories => {

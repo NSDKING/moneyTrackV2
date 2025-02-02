@@ -53,8 +53,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
            `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
 
            const transactionData = await db.getAllAsync('SELECT * FROM transactions');
-           console.log(transactionData);
-       } catch (error) {
+        } catch (error) {
            console.error('Error inserting transaction:', error);
        }
    };
@@ -81,8 +80,7 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
            note,
            icon: 'swap-horizontal-outline'
        };
-       console.log(newTransfer);
-
+ 
        // Insert transactions for both wallets
        await insertTransaction(sourceWallet, null, 'transfer', parseFloat(amount), note, destinationWallet, transactionDate.toISOString());
        await insertTransaction(destinationWallet, null, 'transfer', parseFloat(amount), note, null, transactionDate.toISOString());

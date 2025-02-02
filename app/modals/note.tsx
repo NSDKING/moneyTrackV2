@@ -162,7 +162,6 @@ export default function NoteModal({ visible, onClose, wallets }: NoteModalProps)
            category: 'uncategorized',
            icon: isExpense ? 'remove-circle-outline' : 'add-circle-outline'
        };
-        console.log(newTransaction);
        // Here you would add the transaction to your database
        
        resetForm();

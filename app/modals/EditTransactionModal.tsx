@@ -39,7 +39,29 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
             setIsExpense(transaction.type === 'withdrawal');
             setTransactionDate(new Date(transaction.transaction_date));
         }
-    }, [transaction]);
+     }, [transaction]);
+
+    const finalAmount = () => {
+        const parsedAmount = Number(amount);
+
+        // Validate the amount
+        if (isNaN(parsedAmount)) {
+            Alert.alert("Validation Error", "Please enter a valid amount.");
+            return 0; // Return a default value or handle as needed
+        }
+
+        if (getType() === "withdrawal") {
+            return parsedAmount < 0 ? parsedAmount : -parsedAmount; // Return negative for withdrawals
+        } else if (getType() === "deposit") {
+            if (parsedAmount < 0) {
+                Alert.alert("Validation Error", "Deposit amount must be positive.");
+                return 0; // Return a default value or handle as needed
+            }
+            return parsedAmount; // Return positive for deposits
+        }
+
+        return 0; // Default return value if type is not recognized
+    };
 
     const updateTransaction = async () => {
         if (!transaction) return;
@@ -47,7 +69,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
         try {
             const dbPath = `${FileSystem.documentDirectory}sys.db`;
             const db = await SQLite.openDatabaseAsync(dbPath);
-
+            
             await db.runAsync(`
                 UPDATE transactions
                 SET category_id = ?, 
@@ -57,9 +79,9 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
                     transaction_date = ?, 
                     updated_at = CURRENT_TIMESTAMP
                 WHERE ID = ?;
-            `, [selectedCategory, getType(), parseFloat(amount as string), title, transactionDate.toISOString(), transaction.ID]);
-
+            `, [selectedCategory, getType(), finalAmount(), title, transactionDate.toISOString(), transaction.ID]);
             // Update the local state to reflect the changes
+            
             setTransactions(prevTransactions => 
                 prevTransactions.map(t => 
                     t.ID === transaction.ID 
@@ -67,14 +89,15 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
                             ...t, 
                             category_id: selectedCategory !== null ? selectedCategory : 0,
                             type: getType(), 
-                            amount: parseFloat(amount as string), 
+                            amount: finalAmount(), 
                             description: title, 
                             transaction_date: transactionDate.toISOString() 
                           } 
                         : t
                 )
+                
             );
-
+ 
             Alert.alert("Success", "Transaction updated successfully.");
             onClose();
         } catch (error) {
@@ -108,6 +131,29 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
         (isExpense && category.type === 'expense') || 
         (!isExpense && category.type === 'income')
     );
+
+
+    const deleteTransaction = async () => {
+        if (!transaction) return;
+         try {
+            const dbPath = `${FileSystem.documentDirectory}sys.db`;
+            const db = await SQLite.openDatabaseAsync(dbPath);
+             await db.runAsync(`
+                UPDATE transactions
+                SET is_deleted = TRUE
+                WHERE ID = ?;
+            `, [transaction.ID]);
+             // Remove the transaction from the local state
+            setTransactions(prevTransactions => 
+                prevTransactions.filter(t => t.ID !== transaction.ID)  
+            );
+             Alert.alert("Success", "Transaction deleted successfully.");
+            onClose();
+        } catch (error) {
+            console.error('Error deleting transaction:', error);
+            Alert.alert("Error", "Failed to delete transaction. Please try again.");
+        }
+    };
     
      
 
@@ -217,6 +263,13 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ visible, on
                         >
                             <Text style={styles.submitButtonText}>Update Transaction</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity 
+                           style={styles.deleteButton}
+                           onPress={deleteTransaction}
+                       >
+                           <Text style={styles.deleteButtonText}>Delete Transaction</Text>
+                       </TouchableOpacity>
                     </ScrollView>
                 </View>
             </KeyboardAvoidingView>
@@ -340,6 +393,18 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     submitButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    deleteButton: {
+        backgroundColor: 'red',
+        padding: 15,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    deleteButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: '600',
