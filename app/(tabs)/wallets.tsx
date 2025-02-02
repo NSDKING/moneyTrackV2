@@ -117,7 +117,7 @@ export default function WalletsScreen() {
 
             <View style={styles.transactionsContainer}>
                 <View style={styles.transactionsHeader}>
-                    <Text style={styles.transactionsTitle}>there is ne transfer here</Text>
+                    <Text style={styles.transactionsTitle}>there is no transfer here</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                     {
