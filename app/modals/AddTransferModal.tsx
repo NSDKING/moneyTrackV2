@@ -18,8 +18,6 @@ import * as FileSystem from 'expo-file-system';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Wallet } from '@/assets/types';
 
-
-
 interface AddTransferModalProps {
    visible: boolean;
    onClose: () => void;
@@ -28,8 +26,8 @@ interface AddTransferModalProps {
 
 export default function AddTransferModal({ visible, onClose, wallets }: AddTransferModalProps) {
    const [amount, setAmount] = useState('');
-   const [sourceWallet, setSourceWallet] = useState('');
-   const [destinationWallet, setDestinationWallet] = useState('');
+   const [sourceWallet, setSourceWallet] = useState<string | null>(null);
+   const [destinationWallet, setDestinationWallet] = useState<string | null>(null);
    const [note, setNote] = useState('');
    const [transactionDate, setTransactionDate] = useState(new Date());
    const [showDatePicker, setShowDatePicker] = useState(false);
@@ -52,8 +50,6 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                )
                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
            `, [walletId, categoryId, type, amount, description, transactionDate, transferToWalletId]);
-
-           const transactionData = await db.getAllAsync('SELECT * FROM transactions');
         } catch (error) {
            console.error('Error inserting transaction:', error);
        }
@@ -70,18 +66,6 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
            return;
        }
 
-       // Create transfer object
-       const newTransfer = {
-           id: Date.now().toString(),
-           title: `Transfer to ${wallets.find(w => w.ID === Number(destinationWallet))?.name}`,
-           amount,
-           date: transactionDate.toISOString(),
-           sourceWallet,
-           destinationWallet,
-           note,
-           icon: 'swap-horizontal-outline'
-       };
- 
        // Insert transactions for both wallets
        await insertTransaction(sourceWallet, null, 'transfer', parseFloat(amount), note, destinationWallet, transactionDate.toISOString());
        await insertTransaction(destinationWallet, null, 'transfer', parseFloat(amount), note, null, transactionDate.toISOString());
@@ -92,8 +76,8 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
 
    const resetForm = () => {
        setAmount('');
-       setSourceWallet('');
-       setDestinationWallet('');
+       setSourceWallet(null);
+       setDestinationWallet(null);
        setNote('');
        setTransactionDate(new Date());
    };
@@ -138,13 +122,13 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                            {wallets.map((wallet) => (
                                <TouchableOpacity
                                    key={wallet.ID}
-                                   style={[styles.walletButton, Number(sourceWallet) === wallet.ID && styles.walletButtonActive]}
-                                   onPress={() => setSourceWallet(String(wallet.ID))}
+                                   style={[styles.walletButton, sourceWallet === wallet.ID && styles.walletButtonActive]}
+                                   onPress={() => setSourceWallet(wallet.ID)}
                                >
-                                   <Text style={[styles.walletText, Number(sourceWallet) === wallet.ID && styles.walletTextActive]}>
+                                   <Text style={[styles.walletText, sourceWallet === wallet.ID && styles.walletTextActive]}>
                                        {wallet.name}
                                    </Text>
-                                   <Text style={[styles.walletAmount, Number(sourceWallet) === wallet.ID && styles.walletTextActive]}>
+                                   <Text style={[styles.walletAmount, sourceWallet === wallet.ID && styles.walletTextActive]}>
                                        {wallet.balance}
                                    </Text>
                                </TouchableOpacity>
@@ -165,13 +149,13 @@ export default function AddTransferModal({ visible, onClose, wallets }: AddTrans
                            {wallets.map((wallet) => (
                                <TouchableOpacity
                                    key={wallet.ID}
-                                   style={[styles.walletButton, Number(destinationWallet) === wallet.ID && styles.walletButtonActive]}
-                                   onPress={() => setDestinationWallet(String(wallet.ID))}
+                                   style={[styles.walletButton, destinationWallet === wallet.ID && styles.walletButtonActive]}
+                                   onPress={() => setDestinationWallet(wallet.ID)}
                                >
-                                   <Text style={[styles.walletText, Number(destinationWallet) === wallet.ID && styles.walletTextActive]}>
+                                   <Text style={[styles.walletText, destinationWallet === wallet.ID && styles.walletTextActive]}>
                                        {wallet.name}
                                    </Text>
-                                   <Text style={[styles.walletAmount, Number(destinationWallet) === wallet.ID && styles.walletTextActive]}>
+                                   <Text style={[styles.walletAmount, destinationWallet === wallet.ID && styles.walletTextActive]}>
                                        {wallet.balance}
                                    </Text>
                                </TouchableOpacity>
@@ -324,4 +308,4 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
- });
+}); 

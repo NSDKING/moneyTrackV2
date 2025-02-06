@@ -5,6 +5,7 @@ import Colors from '@/constants/Colors';
 import { Transaction, Wallet } from '@/assets/types';
 import { useAppContext } from '@/context/AppContext';
 import EditTransactionModal from '../modals/EditTransactionModal';
+import AddTransferModal from '../modals/AddTrasnferModal';
  
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
@@ -14,6 +15,7 @@ export default function WalletsScreen() {
     const { wallets, setWallets, transactions, setTransactions, categories } = useAppContext();
     const [currentWallet, setCurrentWallet] = useState<Wallet | null>(wallets[0]);
     const [isEditTransactionModalVisible, setIsEditTransactionModalVisible] = useState(false);
+    const [isTransferModal, setIsTransferModal] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const flatListRef = useRef<FlatList<Wallet>>(null);
 
@@ -100,6 +102,8 @@ export default function WalletsScreen() {
 
     return (
         <ScrollView style={styles.container}>
+   
+
             <FlatList
                 ref={flatListRef}
                 data={wallets}
@@ -114,6 +118,15 @@ export default function WalletsScreen() {
 
             />
 
+            <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={ () =>{ setIsTransferModal(true) }}      
+            >
+                <View style={styles.actionButtonContent}>
+                    <Ionicons name="swap-horizontal-outline" size={24} color={Colors.CharcoalGray} />
+                    <Text style={styles.actionButtonText}>Transfer</Text>
+                </View>
+            </TouchableOpacity>
 
             <View style={styles.transactionsContainer}>
                 <View style={styles.transactionsHeader}>
@@ -153,6 +166,11 @@ export default function WalletsScreen() {
                     setSelectedTransaction(null);
                 }}
                 transaction={selectedTransaction}
+            />
+            <AddTransferModal
+                visible={isTransferModal}
+                onClose={() => setIsTransferModal(false)}
+                wallets={wallets}
             />
         </ScrollView>
     );
@@ -281,7 +299,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 20,
         shadowColor: '#000',
-        marginTop:150,
+        marginTop:80,
         shadowOffset: {
             width: 0,
             height: 2,
@@ -315,6 +333,35 @@ const styles = StyleSheet.create({
     transactionsTitle: {
         fontSize: 18,
         fontWeight: '600',
+        color: Colors.CharcoalGray,
+    },
+    actionButton: {
+        marginTop:25,
+        flex: 1,
+        width:300,
+        backgroundColor: '#fff',
+        padding: 11,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
+        alignSelf: 'center', // Center the button horizontally
+
+    },
+    actionButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    actionButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
         color: Colors.CharcoalGray,
     },
 });

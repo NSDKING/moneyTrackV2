@@ -556,7 +556,7 @@ export default function Home() {
                             <AddTransferModal
                                 visible={isTransferModal}
                                 onClose={() => setIsTransferModal(false)}
-                                wallets={walletLists}
+                                wallets={wallets}
                             />
                 
                         </>
