@@ -9,7 +9,7 @@ type BarChartProps = {
 
 const BarChart: React.FC<BarChartProps> = ({ labels, data }) => {
   // Bar chart height will be proportional to the maximum expense/income value
-  const adjustedData = data.map(value => value < 0 ? 1000 : value);
+  const adjustedData = data.map(value => value < 0 ? 1000    : value);
   
   const maxValue = Math.max(...adjustedData);
   // Create a render function for the individual bars
