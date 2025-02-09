@@ -101,6 +101,7 @@ export default function Home() {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (category_id) REFERENCES categories(ID)
+                    
                 );
     
             `);

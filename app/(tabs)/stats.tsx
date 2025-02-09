@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-
+import { useAppContext } from '@/context/AppContext';
+import { Category, Transaction } from '@/assets/types';
+ 
 const { width } = Dimensions.get('window');
 
 // Sample data - replace with your actual data
@@ -25,9 +27,130 @@ const monthlyData = {
   },
 };
 
+const data = {
+  labels: ['January', 'February', 'March', 'April', 'May', 'June'],
+  datasets: [
+    {
+      data: [20, 45, 28, 80, 99, 43],
+    },
+  ],
+};
+
+const chartConfig = {
+  backgroundGradientFrom: '#fb8c00',
+  backgroundGradientTo: '#ffa726',
+  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+  style: {
+    borderRadius: 16,
+  },
+  propsForDots: {
+    r: '6',
+    strokeWidth: '2',
+    stroke: '#ffa726',
+  },
+};
+
+
 export default function ReportsScreen() {
   const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
   const [newBudget, setNewBudget] = useState(monthlyData.budget.toString());
+  const [categorySummary, setCategorySummary] = useState<{ [key: string]: { totalAmount: number; color: string; icon: string } }>({});  
+  const [monthlyTrends, setMonthlyTrends] = useState({
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    expenses: new Array(12).fill(0),
+    income: new Array(12).fill(0),
+});  const {  transactions, categories } = useAppContext();
+
+
+    // Function to format the amount
+    const formatAmount = (amount: number): string => {
+      if (amount === 0) return "0"; // Handle zero case
+      const absAmount = Math.abs(amount);
+      const formattedAmount = (absAmount / 1000).toFixed(0); // Divide by 1000 and round to nearest integer
+      return `${formattedAmount}K`; // Append 'K' for thousands
+  };
+
+  
+  const monthlyExpense = () => {
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth(); // 0-indexed (0 = January, 11 = December)
+      const currentYear = currentDate.getFullYear();
+          // Filter transactions to include only expenses from the current month
+      const monthlyExpenses = transactions.filter(transaction => {
+          const transactionDate = new Date(transaction.transaction_date); // Assuming transaction_date is in a valid format
+          return (
+              transaction.type === 'withdrawal' && // Assuming 'withdrawal' indicates an expense
+              transactionDate.getMonth() === currentMonth &&
+              transactionDate.getFullYear() === currentYear
+          );
+          });
+      // Calculate the total monthly expenses
+      const totalMonthlyExpense = monthlyExpenses.reduce((accumulator, transaction) => {
+          let amount = transaction.amount;
+
+          // Check if amount is defined and is a string
+          if (typeof amount === 'string') {
+              return accumulator + parseFloat(amount.replace(/,/g, '')); // Remove commas and convert to float
+          } else if (typeof amount === 'number') {
+              return accumulator + amount; // If it's already a number, just add it
+          } else {
+              console.warn(`Invalid amount for transaction: ${JSON.stringify(transaction)}`); // Log the invalid transaction
+              return accumulator; // Skip this transaction
+          }
+      }, 0);
+
+      // Format the total monthly expense
+      return formatAmount(totalMonthlyExpense);
+  };
+
+  const getBalance = () => {
+    if (transactions.length === 0) {
+        return 0;
+    } else {
+        const justTransaction = transactions.filter(transaction => transaction.type !== 'transfer'); 
+
+        const totalBalance = justTransaction.reduce((accumulator, transaction) => {
+            const amount = transaction.amount ? String(transaction.amount).replace(/,/g, '') : '0';
+            return accumulator + parseFloat(amount);
+        }, 0);
+
+        return totalBalance;
+    }
+  };
+
+  const monthlyIncome = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth(); // 0-indexed (0 = January, 11 = December)
+    const currentYear = currentDate.getFullYear();
+
+    // Filter transactions to include only income from the current month
+    const monthlyIncomes = transactions.filter(transaction => {
+        const transactionDate = new Date(transaction.transaction_date); // Assuming transaction_date is in a valid format
+        return (
+            transaction.type === 'deposit' && // Assuming 'deposit' indicates an income
+            transactionDate.getMonth() === currentMonth &&
+            transactionDate.getFullYear() === currentYear
+        );
+    });
+
+    // Calculate the total monthly income
+    const totalMonthlyIncome = monthlyIncomes.reduce((accumulator, transaction) => {
+        // Check if transaction.amount is defined and is a string
+        const amount = transaction.amount;
+        if (typeof amount === 'string') {
+            return accumulator + parseFloat(amount.replace(/,/g, '')); // Remove commas and convert to float
+        } else if (typeof amount === 'number') {
+            return accumulator + amount; // If it's already a number, just add it
+        } else {
+            console.warn(`Invalid amount for transaction: ${JSON.stringify(transaction)}`); // Log the invalid transaction
+            return accumulator; // Skip this transaction
+        }
+    }, 0);
+
+    // Format the total monthly income
+    return formatAmount(totalMonthlyIncome);
+  };
 
   const handleBudgetUpdate = () => {
     const budgetValue = parseFloat(newBudget);
@@ -40,6 +163,71 @@ export default function ReportsScreen() {
     setNewBudget(budgetValue.toString());
   };
 
+  const categorizeTransactions = (transactions: Array<Transaction>, categories: Array<Category>) => {
+    // Initialize an object to hold the categorized data
+    const categorizedData: { [key: string]: { totalAmount: number; color: string; icon: string } } = {};
+
+    // Iterate through each transaction
+    transactions.forEach(transaction => {
+        const categoryId = transaction.category_id; // Assuming each transaction has a category_id
+        const amount = parseFloat(transaction.amount); // Convert amount to a number
+
+        // Find the category details using the category ID
+        const category = categories.find(cat => cat.ID === categoryId);
+
+        if (category) {
+            // If the category is found, initialize or update the categorized data
+            if (!categorizedData[category.name]) {
+                categorizedData[category.name] = {
+                    totalAmount: 0,
+                    color: category.color, // Assuming category has a color property
+                    icon: category.icon,   // Assuming category has an icon property
+                };
+            }
+
+            // Update the total amount for the category
+            categorizedData[category.name].totalAmount += amount;
+        }
+    });
+
+    setCategorySummary(categorizedData);
+  };
+
+  const calculateMonthlyTrends = (transactions: Array<Transaction>) => {
+    // Initialize an array to hold the total income and expenses for each month
+    const monthlyTrends = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        expenses: new Array(12).fill(0), // Initialize expenses for each month
+        income: new Array(12).fill(0),    // Initialize income for each month
+    };
+
+    // Iterate through each transaction
+    transactions.forEach(transaction => {
+        const transactionDate = new Date(transaction.transaction_date); // Assuming transaction_date is in a valid format
+        const month = transactionDate.getMonth(); // Get the month (0-indexed)
+
+        // Check the type of transaction and update the corresponding monthly total
+        if (transaction.type === 'withdrawal') { // Assuming 'withdrawal' indicates an expense
+            const amount = (transaction.amount); // Convert amount to a number
+            monthlyTrends.expenses[month] += amount; // Add to the corresponding month's expenses
+        } else if (transaction.type === 'deposit') { // Assuming 'deposit' indicates income
+            const amount = (transaction.amount); // Convert amount to a number
+            monthlyTrends.income[month] += amount; // Add to the corresponding month's income
+        }
+    });
+
+    return monthlyTrends;
+};
+
+useEffect(() => {
+  const trends = calculateMonthlyTrends(transactions);
+  setMonthlyTrends(trends);
+  categorizeTransactions(transactions,categories);
+  console.log(categories)
+
+
+}, [transactions])
+
   return (
     <ScrollView style={styles.container}>
       {/* Overview Section */}
@@ -48,87 +236,98 @@ export default function ReportsScreen() {
         <View style={styles.overviewCards}>
           <View style={[styles.overviewCard, { backgroundColor: Colors.lightGreen }]}>
             <Text style={styles.overviewLabel}>Income</Text>
-            <Text style={styles.overviewAmount}>₦{monthlyData.income.toLocaleString()}</Text>
+            <Text style={styles.overviewAmount}>F{monthlyIncome().toLocaleString()}</Text>
           </View>
           <View style={[styles.overviewCard, { backgroundColor: Colors.lightRed }]}>
             <Text style={styles.overviewLabel}>Expenses</Text>
-            <Text style={styles.overviewAmount}>₦{monthlyData.expenses.toLocaleString()}</Text>
+            <Text style={styles.overviewAmount}>F  {monthlyExpense().toLocaleString()}</Text>
           </View>
           <View style={[styles.overviewCard, { backgroundColor: Colors.lightBlue }]}>
             <Text style={styles.overviewLabel}>Net Balance</Text>
-            <Text style={styles.overviewAmount}>₦{monthlyData.netBalance.toLocaleString()}</Text>
+            <Text style={styles.overviewAmount}>F  {monthlyData.netBalance.toLocaleString()}</Text>
           </View>
         </View>
       </View>
 
-      {/* Budget Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Budget</Text>
-        <View style={styles.budgetContainer}>
-          <Text style={styles.budgetLabel}>Current Budget: ₦{monthlyData.budget.toLocaleString()}</Text>
-          <TouchableOpacity
-            style={styles.editBudgetButton}
-            onPress={() => setIsBudgetModalVisible(true)}
-          >
-            <Text style={styles.editBudgetButtonText}>Edit Budget</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+
 
       {/* Trends Chart */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Income vs Expenses Trend</Text>
-        <LineChart
-          data={{
-            labels: monthlyData.trends.labels,
-            datasets: [
-              {
-                data: monthlyData.trends.expenses,
-                color: () => Colors.BrightRed,
-              },
-              {
-                data: monthlyData.trends.income,
-                color: () => Colors.green,
-              },
-            ],
-          }}
-          width={width - 40}
-          height={220}
-          chartConfig={{
-            backgroundColor: '#fff',
-            backgroundGradientFrom: '#fff',
-            backgroundGradientTo: '#fff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-          }}
-          bezier
-          style={styles.chart}
-        />
+          <Text style={styles.sectionTitle}>Income vs Expenses Trend</Text>
+          <LineChart
+              data={{
+                  labels: monthlyTrends.labels,
+                  datasets: [
+                      {
+                          data: monthlyTrends.expenses,
+                          color: (opacity = 1) => `rgba(255, 0, 0, ${opacity})`, // Red for expenses
+                          strokeWidth: 3, // Adjust line thickness
+                          // Add point styles
+                          pointRadius: 5,
+                          pointHoverRadius: 7,
+                      },
+                      {
+                          data: monthlyTrends.income,
+                          color: (opacity = 1) => `rgba(0, 255, 0, ${opacity})`, // Green for income
+                          strokeWidth: 3, // Adjust line thickness
+                          // Add point styles
+                          pointRadius: 5,
+                          pointHoverRadius: 7,
+                      },
+                  ],
+              }}
+              width={width - 40}
+              height={220}
+              chartConfig={{
+                  backgroundColor: '#fff',
+                  backgroundGradientFrom: '#fff',
+                  backgroundGradientTo: '#fff',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  style: {
+                      borderRadius: 16,
+                  },
+                  propsForDots: {
+                      r: "6", // Radius of the dots
+                      strokeWidth: "2", // Stroke width of the dots
+                      stroke: "#fff", // Stroke color of the dots
+                  },
+                  // Add grid lines
+                  propsForHorizontalLines: {
+                      strokeDasharray: "", // Solid lines
+                      stroke: "#e0e0e0", // Light gray for grid lines
+                  },
+              }}
+              bezier
+              style={styles.chart}
+          />
+     
       </View>
 
       {/* Category Breakdown */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Spending by Category</Text>
         <View style={styles.categoriesList}>
-          {monthlyData.categories.map((category, index) => (
-            <View key={index} style={styles.categoryItem}>
-              <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
-                <Ionicons name={`${category.icon}-outline`} size={24} color="white" />
-              </View>
-              <View style={styles.categoryInfo}>
-                <Text style={styles.categoryName}>{category.name}</Text>
-                <Text style={styles.categoryAmount}>
-                  ₦{category.amount.toLocaleString()}
-                </Text>
-              </View>
-              <Text style={styles.categoryPercentage}>
-                {Math.round((category.amount / monthlyData.expenses) * 100)}%
-              </Text>
-            </View>
-          ))}
+            {Object.entries(categorySummary).length > 0 ? (
+                Object.entries(categorySummary).map(([categoryName, data], index) => (
+                    <View key={index} style={styles.categoryItem}>
+                        <View style={[styles.categoryIcon, { backgroundColor: data.color }]}>
+                            <Ionicons name={data.icon} size={24} color="white" />
+                        </View>
+                        <View style={styles.categoryInfo}>
+                            <Text style={styles.categoryName}>{categoryName}</Text>
+                            <Text style={styles.categoryAmount}>
+                                ₦{data.totalAmount.toLocaleString()}
+                            </Text>
+                        </View>
+                        <Text style={styles.categoryPercentage}>
+                            {Math.round((data.totalAmount / monthlyData.expenses) * 100)}%
+                        </Text>
+                    </View>
+                ))
+            ) : (
+                <Text>No categories available.</Text> // Fallback message if no categories are present
+            )}
         </View>
       </View>
 
@@ -230,6 +429,7 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
+    marginLeft:-20,
   },
   categoriesList: {
     gap: 15,
@@ -302,4 +502,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  
 });

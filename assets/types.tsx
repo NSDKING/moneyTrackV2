@@ -105,7 +105,13 @@ interface RenderWalletCardProps {
     onPress?: () => void;
 }
 
+type MonthlyTrends = {
+    labels: string[];
+    expenses: number[];
+    income: number[];
+  };
 
 
-export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking, EditTransactionModalProps, RenderWalletCardProps };
+
+export { Wallet, Transaction, Category, AddTransactionModalProps,Icon, CategoryIcons, CategorySelectorProps, AppContextType, AddBudgetModalProps, BudgetTracking, EditTransactionModalProps, RenderWalletCardProps, MonthlyTrends };
 
